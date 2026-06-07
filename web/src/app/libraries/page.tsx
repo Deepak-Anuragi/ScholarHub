@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { fetchLibraries } from "@/lib/api";
 
 const facilityOptions = [
@@ -28,12 +26,11 @@ export default async function LibrariesPage() {
 
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <div className="relative overflow-hidden">
+      <div className="relative -mt-[var(--header-height)] overflow-hidden pt-[var(--header-height)]">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-24 h-48 w-48 rounded-full bg-sage-200/60 blur-3xl" />
           <div className="absolute right-[-60px] top-24 h-56 w-56 rounded-full bg-sage-100/70 blur-3xl" />
         </div>
-        <SiteHeader />
         <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-10 pt-2">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-wide text-forest-900/70">
@@ -229,7 +226,6 @@ export default async function LibrariesPage() {
         </div>
       </main>
 
-      <SiteFooter />
     </div>
   );
 }

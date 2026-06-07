@@ -1,10 +1,6 @@
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-
 export default function Loading() {
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <SiteHeader />
       <main className="mx-auto w-full max-w-6xl px-6 pb-16 pt-6">
         <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
           <section className="rounded-card border border-line bg-white/80 p-6 shadow-soft animate-pulse">
@@ -24,7 +20,6 @@ export default function Loading() {
           </aside>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }

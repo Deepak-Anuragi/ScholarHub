@@ -1,7 +1,5 @@
 import Link from "next/link";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import { fetchLibraries } from "@/lib/api";
 
 const examTypes = ["Govt Exam", "Entrance Exam", "School", "Professional"];
@@ -12,12 +10,11 @@ export default async function MapPage() {
 
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <div className="relative overflow-hidden">
+      <div className="relative -mt-[var(--header-height)] overflow-hidden pt-[var(--header-height)]">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-12 h-52 w-52 rounded-full bg-sage-200/60 blur-3xl" />
           <div className="absolute right-[-50px] top-24 h-64 w-64 rounded-full bg-sage-100/70 blur-3xl" />
         </div>
-        <SiteHeader />
         <div className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-8 pt-2">
           <p className="text-sm font-semibold uppercase tracking-wide text-forest-900/70">
             Live seat map
@@ -124,7 +121,6 @@ export default async function MapPage() {
         </div>
       </main>
 
-      <SiteFooter />
     </div>
   );
 }

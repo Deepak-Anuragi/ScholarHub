@@ -1,12 +1,8 @@
 import Link from "next/link";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <SiteHeader />
       <main className="mx-auto w-full max-w-4xl px-6 pb-16 pt-10">
         <div className="rounded-card border border-line bg-white/80 p-8 shadow-soft">
           <p className="text-sm font-semibold text-forest-900/70">
@@ -26,7 +22,6 @@ export default function NotFound() {
           </Link>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }

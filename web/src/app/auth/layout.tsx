@@ -1,6 +1,3 @@
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-
 const highlights = [
   "Verified library profiles",
   "Shift-wise seat booking",
@@ -15,16 +12,11 @@ export default function AuthLayout({
 }) {
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <SiteHeader
-        showNav={false}
-        actions={[{ label: "Back to home", href: "/" }]}
-        mobileAction={{ label: "Back", href: "/" }}
-      />
       <main className="mx-auto w-full max-w-6xl px-6 pb-16 pt-8">
         <div className="grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
           <aside className="rounded-card border border-line bg-white/70 p-6 shadow-soft">
             <p className="text-sm font-semibold uppercase tracking-wide text-forest-900/70">
-              Scholar's Hub
+              Scholar&apos;s Hub
             </p>
             <h1 className="mt-3 font-display text-3xl text-forest-900">
               Study spaces, sorted by city and seat.
@@ -49,7 +41,6 @@ export default function AuthLayout({
           </div>
         </div>
       </main>
-      <SiteFooter />
     </div>
   );
 }

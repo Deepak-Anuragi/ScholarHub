@@ -1,8 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
 import {
   fetchLibraryById,
   fetchLibraryReviews,
@@ -36,7 +34,6 @@ export default async function LibraryDetailPage({
 
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <SiteHeader />
       <main className="mx-auto w-full max-w-6xl px-6 pb-16 pt-6">
         <Link
           className="text-sm text-forest-900/70 transition hover:text-forest-900"
@@ -309,7 +306,6 @@ export default async function LibraryDetailPage({
         </section>
       </main>
 
-      <SiteFooter />
     </div>
   );
 }

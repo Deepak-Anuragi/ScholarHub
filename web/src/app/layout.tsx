@@ -1,6 +1,14 @@
 import type { Metadata } from "next";
-import { Fraunces, Space_Grotesk } from "next/font/google";
+import { Fraunces, Space_Grotesk, Inter } from "next/font/google";
+
+import { AppShell } from "@/components/layout/AppShell";
+import { AuthProvider } from "@/components/providers/auth-provider";
+import { LenisProvider } from "@/components/providers/lenis-provider";
+import { cn } from "@/lib/utils";
+
 import "./globals.css";
+
+const inter = Inter({subsets:['latin'],variable:'--font-sans'});
 
 const spaceGrotesk = Space_Grotesk({
   variable: "--font-space-grotesk",
@@ -25,9 +33,15 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${spaceGrotesk.variable} ${fraunces.variable} h-full antialiased`}
+      className={cn("h-full", "antialiased", spaceGrotesk.variable, fraunces.variable, "font-sans", inter.variable)}
     >
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="flex min-h-full flex-col">
+        <AuthProvider>
+          <LenisProvider>
+            <AppShell>{children}</AppShell>
+          </LenisProvider>
+        </AuthProvider>
+      </body>
     </html>
   );
 }

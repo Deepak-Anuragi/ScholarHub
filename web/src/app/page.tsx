@@ -1,6 +1,3 @@
-import { SiteFooter } from "@/components/site-footer";
-import { SiteHeader } from "@/components/site-header";
-
 export default function Home() {
   const featuredLibraries = [
     {
@@ -85,14 +82,12 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
-      <div className="relative overflow-hidden">
+      <div className="relative -mt-[var(--header-height)] overflow-hidden pt-[var(--header-height)]">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-16 h-56 w-56 rounded-full bg-sage-200/60 blur-3xl animate-[float_12s_ease-in-out_infinite]" />
           <div className="absolute right-[-80px] top-24 h-64 w-64 rounded-full bg-sage-100/70 blur-3xl animate-[float_14s_ease-in-out_infinite]" />
           <div className="absolute bottom-[-120px] left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-sage-300/40 blur-[120px]" />
         </div>
-
-        <SiteHeader />
 
         <main className="relative z-10 mx-auto w-full max-w-6xl px-6 pb-16 pt-6">
           <section className="grid items-center gap-10 lg:grid-cols-[1.1fr_0.9fr]">
@@ -426,7 +421,6 @@ export default function Home() {
         </div>
       </section>
 
-      <SiteFooter />
     </div>
   );
 }
