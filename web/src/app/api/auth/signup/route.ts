@@ -7,55 +7,54 @@ import type { AuthUser } from "@/lib/auth";
 import { SESSION_COOKIE } from "@/lib/auth";
 import { encodeSession } from "@/lib/auth-session";
 
-type LoginBody = {
+type SignupBody = {
+  name: string;
   email: string;
+  phone: string;
   password: string;
+  role?: "STUDENT" | "LIBRARY_OWNER";
 };
 
 export async function POST(request: Request) {
   try {
-    const body = (await request.json()) as LoginBody;
+    const body = (await request.json()) as SignupBody;
 
-    if (!body.email || !body.password) {
+    if (!body.name || !body.email || !body.password || !body.phone) {
       return NextResponse.json(
-        { error: "Email and password are required." },
+        { error: "Name, email, phone, and password are required." },
         { status: 400 }
       );
     }
 
     await connectDB();
 
-    const dbUser = await User.findOne({ email: body.email.toLowerCase() });
-
-    if (!dbUser) {
+    // Check if email already exists
+    const existing = await User.findOne({ email: body.email.toLowerCase() });
+    if (existing) {
       return NextResponse.json(
-        { error: "Invalid email or password." },
-        { status: 401 }
+        { error: "An account with this email already exists." },
+        { status: 409 }
       );
     }
 
-    const passwordMatch = await bcryptjs.compare(body.password, dbUser.passwordHash);
-    if (!passwordMatch) {
-      return NextResponse.json(
-        { error: "Invalid email or password." },
-        { status: 401 }
-      );
-    }
+    const passwordHash = await bcryptjs.hash(body.password, 12);
+
+    const dbUser = await User.create({
+      name: body.name,
+      email: body.email,
+      phone: body.phone,
+      passwordHash,
+      role: body.role ?? "STUDENT",
+    });
 
     const sessionUser: AuthUser = {
       id: String(dbUser._id),
       name: dbUser.name,
       email: dbUser.email,
-      role:
-        dbUser.role === "LIBRARY_OWNER"
-          ? "owner"
-          : dbUser.role === "ADMIN"
-          ? "admin"
-          : "student",
-      avatarUrl: dbUser.avatarUrl,
+      role: dbUser.role === "LIBRARY_OWNER" ? "owner" : dbUser.role === "ADMIN" ? "admin" : "student",
     };
 
-    const response = NextResponse.json({ user: sessionUser });
+    const response = NextResponse.json({ user: sessionUser }, { status: 201 });
 
     response.cookies.set(SESSION_COOKIE, encodeSession(sessionUser), {
       httpOnly: true,
@@ -67,7 +66,7 @@ export async function POST(request: Request) {
 
     return response;
   } catch (err) {
-    console.error("[login]", err);
+    console.error("[signup]", err);
     return NextResponse.json(
       { error: "Something went wrong. Please try again." },
       { status: 500 }
