@@ -10,7 +10,7 @@ import BlurText from "@/components/BlurText/BlurText";
 import TextType from "@/components/TextType/TextType";
 import { Button } from "@/components/ui/button";
 
-const CITIES = ["Bhopal", "Indore", "Jabalpur", "Gwalior"];
+const CITIES = ["Bhopal", "Indore", "Jabalpur", "Gwalior" , "Ujjain", "Satna", "Rewa", "Narsimhapur", "Ratlam", "Morena", "Shivpuri", "Chhindwara", "Dewas", "Mandla", "Balaghat", "Sehore", "Sidhi", "Hoshangabad", "Barwani", "Burhanpur", "Jhabua", "Mandla", "Narsimhapur", "Ratlam", "Rewa", "Shivpuri", "Ujjain", "Vidisha"];
 
 const EXAM_TYPES = [
   { label: "Govt Exam", value: "govt-exam" },
