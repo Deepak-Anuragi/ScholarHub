@@ -56,10 +56,11 @@ export function DigitalIDCard({
     const { default: html2canvas } = await import("html2canvas");
     if (!cardRef.current) return;
     const canvas = await html2canvas(cardRef.current, {
-      scale: 3,
+      // html2canvas @types lags behind — scale is a valid runtime option
+      ...({ scale: 3 } as object),
       backgroundColor: null,
       useCORS: true,
-    });
+    } as Parameters<typeof html2canvas>[1]);
     const link = document.createElement("a");
     link.download = `scholars-hub-id-${bookingId.slice(-6)}.png`;
     link.href = canvas.toDataURL("image/png");

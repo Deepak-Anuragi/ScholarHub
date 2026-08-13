@@ -126,10 +126,9 @@ export default function RevenuePage() {
                     tickFormatter={(v: number) => v >= 1000 ? `₹${(v / 1000).toFixed(0)}k` : `₹${v}`}
                   />
                   <Tooltip
-                    formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Revenue"]}
+                    formatter={(v) => [`₹${Number(v ?? 0).toLocaleString("en-IN")}`, "Revenue"]}
                     contentStyle={{ borderRadius: 12, border: "1px solid #d6e2d3", fontSize: 12 }}
                   />
-                  <Bar dataKey="revenue" fill="#4a7c2a" radius={[6, 6, 0, 0]} maxBarSize={48} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -156,8 +155,8 @@ export default function RevenuePage() {
                     outerRadius={80}
                     paddingAngle={3}
                     dataKey="value"
-                    label={({ name, percent }: { name: string; percent: number }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
+                    label={({ name, percent }: { name?: string; percent?: number }) =>
+                      `${name ?? ""} ${((percent ?? 0) * 100).toFixed(0)}%`
                     }
                     labelLine={false}
                   >
@@ -171,7 +170,7 @@ export default function RevenuePage() {
                     )}
                   />
                   <Tooltip
-                    formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Revenue"]}
+                    formatter={(v) => [`₹${Number(v ?? 0).toLocaleString("en-IN")}`, "Revenue"]}
                     contentStyle={{ borderRadius: 12, border: "1px solid #d6e2d3", fontSize: 12 }}
                   />
                 </PieChart>

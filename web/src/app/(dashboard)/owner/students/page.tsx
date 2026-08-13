@@ -25,7 +25,7 @@ export default function StudentsPage() {
       .then((d: { bookings?: StudentBooking[] }) => {
         // Show only active students
         const active = (d.bookings ?? []).filter(
-          (b: { status?: string }) => b.status === "ACTIVE"
+          (b) => (b as { status?: string }).status === "ACTIVE"
         ) as StudentBooking[];
         setBookings(active);
       })

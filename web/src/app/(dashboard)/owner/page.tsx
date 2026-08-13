@@ -221,7 +221,7 @@ export default function OwnerOverviewPage() {
                   }
                 />
                 <Tooltip
-                  formatter={(v: number) => [`₹${v.toLocaleString("en-IN")}`, "Revenue"]}
+                  formatter={(v) => [`₹${Number(v ?? 0).toLocaleString("en-IN")}`, "Revenue"]}
                   contentStyle={{
                     borderRadius: 12,
                     border: "1px solid #d6e2d3",
