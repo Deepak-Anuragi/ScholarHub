@@ -1,0 +1,180 @@
+import { Router, Request, Response } from "express";
+import mongoose from "mongoose";
+
+import connectDB from "../lib/mongodb";
+import LibraryModel from "../models/Library";
+import ReviewModel from "../models/Review";
+import SlotModel from "../models/Slot";
+import { queryLibraries, type LibrarySort } from "../lib/libraries-query";
+import { libraryDetails, libraryReviews, librarySlots } from "../lib/mock-data";
+
+const router = Router();
+
+// ── GET /api/libraries ────────────────────────────────────────────────────
+router.get("/", async (req: Request, res: Response): Promise<void> => {
+  const {
+    city, state, district, exam_type,
+    facilities: facilitiesRaw, min_rating, fee_min, fee_max,
+    available_only, sort = "relevance", page = "1", limit = "12",
+  } = req.query as Record<string, string | undefined>;
+
+  const facilities = facilitiesRaw ? facilitiesRaw.split(",").filter(Boolean) : [];
+
+  try {
+    await connectDB();
+
+    const filter: Record<string, unknown> = { isActive: true };
+    if (city)     filter.city     = { $regex: new RegExp(`^${city}$`, "i") };
+    if (state)    filter.state    = { $regex: new RegExp(`^${state}$`, "i") };
+    if (district) filter.district = { $regex: new RegExp(`^${district}$`, "i") };
+
+    if (fee_min || fee_max) {
+      filter.monthlyFee = {
+        ...(fee_min ? { $gte: Number(fee_min) } : {}),
+        ...(fee_max ? { $lte: Number(fee_max) } : {}),
+      };
+    }
+    if (min_rating) filter.ratingAvg = { $gte: Number(min_rating) };
+    if (available_only === "true") filter.availableSeats = { $gt: 0 };
+
+    const EXAM_TYPE_MAP: Record<string, string> = {
+      "govt-exam": "Govt Exam",
+      "entrance-exam": "Entrance Exam",
+      school: "School",
+      professional: "Professional",
+    };
+    if (exam_type) filter.studentTypes = EXAM_TYPE_MAP[exam_type] ?? exam_type;
+    if (facilities.length > 0) filter.facilities = { $all: facilities };
+
+    const sortMap: Record<string, Record<string, 1 | -1>> = {
+      relevance:  { ratingAvg: -1, reviewCount: -1 },
+      rating:     { ratingAvg: -1 },
+      "fee-asc":  { monthlyFee: 1 },
+      "fee-desc": { monthlyFee: -1 },
+      newest:     { createdAt: -1 },
+      seats:      { availableSeats: -1 },
+    };
+    const sortObj = sortMap[sort as string] ?? sortMap.relevance;
+    const pageNum = Number(page);
+    const limitNum = Number(limit);
+    const skip = (pageNum - 1) * limitNum;
+
+    const [docs, total] = await Promise.all([
+      LibraryModel.find(filter).populate("ownerId", "name phone email").sort(sortObj).skip(skip).limit(limitNum).lean(),
+      LibraryModel.countDocuments(filter),
+    ]);
+
+    res.json({ libraries: docs, total, page: pageNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) });
+  } catch (err) {
+    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
+    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+      const result = queryLibraries({
+        city, state, district, exam_type,
+        fee_min: fee_min ? Number(fee_min) : undefined,
+        fee_max: fee_max ? Number(fee_max) : undefined,
+        facilities: facilities.length > 0 ? facilities : undefined,
+        min_rating: min_rating ? Number(min_rating) : undefined,
+        available_only: available_only === "true",
+        sort: sort as LibrarySort,
+        page: Number(page), limit: Number(limit),
+      });
+      res.json(result);
+      return;
+    }
+    console.error("[libraries]", err);
+    res.status(500).json({ error: "Failed to fetch libraries." });
+  }
+});
+
+// ── POST /api/libraries ───────────────────────────────────────────────────
+router.post("/", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const body = req.body as Record<string, unknown>;
+    if (!body.ownerId || !body.name || !body.address || !body.city) {
+      res.status(400).json({ error: "ownerId, name, address, and city are required." });
+      return;
+    }
+    const library = await LibraryModel.create(body);
+    res.status(201).json({ library });
+  } catch (err) {
+    console.error("[libraries POST]", err);
+    res.status(500).json({ error: "Failed to create library." });
+  }
+});
+
+// ── GET /api/libraries/:id ────────────────────────────────────────────────
+router.get("/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const library = await LibraryModel.findById(req.params.id).populate("ownerId", "name phone email").lean();
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+    res.json({ library });
+  } catch (err) {
+    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
+    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+      const mock = libraryDetails[req.params.id] ?? null;
+      if (!mock) { res.status(404).json({ error: "Library not found." }); return; }
+      res.json({ library: mock });
+      return;
+    }
+    console.error("[library GET]", err);
+    res.status(500).json({ error: "Failed to fetch library." });
+  }
+});
+
+// ── PUT /api/libraries/:id ────────────────────────────────────────────────
+router.put("/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const library = await LibraryModel.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+    res.json({ library });
+  } catch (err) {
+    console.error("[library PUT]", err);
+    res.status(500).json({ error: "Failed to update library." });
+  }
+});
+
+// ── GET /api/libraries/:id/reviews ───────────────────────────────────────
+router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> => {
+  const page = Number(req.query.page ?? 1);
+  const limit = Number(req.query.limit ?? 5);
+  const skip = (page - 1) * limit;
+  try {
+    await connectDB();
+    const [reviews, total] = await Promise.all([
+      ReviewModel.find({ libraryId: req.params.id }).populate("studentId", "name avatarUrl").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      ReviewModel.countDocuments({ libraryId: req.params.id }),
+    ]);
+    res.json({ reviews, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
+  } catch (err) {
+    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
+    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+      const all = libraryReviews[req.params.id] ?? [];
+      res.json({ reviews: all.slice(skip, skip + limit), total: all.length, page, totalPages: Math.max(1, Math.ceil(all.length / limit)) });
+      return;
+    }
+    console.error("[reviews GET]", err);
+    res.status(500).json({ error: "Failed to fetch reviews." });
+  }
+});
+
+// ── GET /api/libraries/:id/slots ──────────────────────────────────────────
+router.get("/:id/slots", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const slots = await SlotModel.find({ libraryId: req.params.id }).lean();
+    res.json({ slots });
+  } catch (err) {
+    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
+    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+      res.json({ slots: librarySlots[req.params.id] ?? [] });
+      return;
+    }
+    console.error("[slots GET]", err);
+    res.status(500).json({ error: "Failed to fetch slots." });
+  }
+});
+
+export default router;
