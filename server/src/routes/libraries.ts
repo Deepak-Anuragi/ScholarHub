@@ -10,6 +10,33 @@ import { libraryDetails, libraryReviews, librarySlots } from "../lib/mock-data";
 
 const router = Router();
 
+function isDatabaseFallbackError(err: unknown): boolean {
+  if (!err) return true;
+  if (!process.env.MONGODB_URI || process.env.MONGODB_URI.includes("xxxxx")) {
+    return true;
+  }
+  if (err instanceof mongoose.Error) return true;
+  if (err instanceof Error) {
+    const msg = err.message.toLowerCase();
+    const code = (err as { code?: string }).code;
+    return (
+      msg.includes("mongodb_uri") ||
+      msg.includes("enotfound") ||
+      msg.includes("econnrefused") ||
+      msg.includes("querysrv") ||
+      msg.includes("timed out") ||
+      msg.includes("serverselection") ||
+      msg.includes("topology") ||
+      code === "ENOTFOUND" ||
+      code === "ECONNREFUSED" ||
+      err.name === "MongoServerSelectionError" ||
+      err.name === "MongoNetworkError" ||
+      err.name === "MongoTimeoutError"
+    );
+  }
+  return false;
+}
+
 // ── GET /api/libraries ────────────────────────────────────────────────────
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   const {
@@ -66,8 +93,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ libraries: docs, total, page: pageNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) });
   } catch (err) {
-    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
-    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+    if (isDatabaseFallbackError(err)) {
       const result = queryLibraries({
         city, state, district, exam_type,
         fee_min: fee_min ? Number(fee_min) : undefined,
@@ -111,8 +137,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     res.json({ library });
   } catch (err) {
-    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
-    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+    if (isDatabaseFallbackError(err)) {
       const mock = libraryDetails[req.params.id] ?? null;
       if (!mock) { res.status(404).json({ error: "Library not found." }); return; }
       res.json({ library: mock });
@@ -149,8 +174,7 @@ router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> =>
     ]);
     res.json({ reviews, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (err) {
-    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
-    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+    if (isDatabaseFallbackError(err)) {
       const all = libraryReviews[req.params.id] ?? [];
       res.json({ reviews: all.slice(skip, skip + limit), total: all.length, page, totalPages: Math.max(1, Math.ceil(all.length / limit)) });
       return;
@@ -167,8 +191,7 @@ router.get("/:id/slots", async (req: Request, res: Response): Promise<void> => {
     const slots = await SlotModel.find({ libraryId: req.params.id }).lean();
     res.json({ slots });
   } catch (err) {
-    const isMissingUri = err instanceof Error && err.message.includes("MONGODB_URI");
-    if (err instanceof mongoose.Error || isMissingUri || !process.env.MONGODB_URI) {
+    if (isDatabaseFallbackError(err)) {
       res.json({ slots: librarySlots[req.params.id] ?? [] });
       return;
     }

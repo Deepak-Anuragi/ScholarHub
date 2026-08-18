@@ -9,6 +9,7 @@ import { LibraryCard } from "@/components/library/LibraryCard";
 import { LibraryResultsSkeleton } from "@/components/library/LibraryCardSkeleton";
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { api } from "@/lib/api";
 import {
   DEFAULT_FILTERS,
   FACILITY_OPTIONS,
@@ -19,28 +20,20 @@ import {
   STUDENT_TYPE_OPTIONS,
   type LibraryFilters,
 } from "@/lib/libraries-filters";
-import type { LibrariesResult } from "@/lib/libraries-query";
+import {
+  buildLibraryQuery,
+  type LibrariesResult,
+} from "@/lib/libraries-query";
+import { fetchLocations } from "@/lib/locations";
 import { cn } from "@/lib/utils";
 
-async function fetchLocations(state?: string, district?: string) {
-  const params = new URLSearchParams();
-  if (state) params.set("state", state);
-  if (district) params.set("district", district);
-  const response = await fetch(`/api/locations?${params.toString()}`);
-  return response.json() as Promise<{
-    states?: string[];
-    districts?: string[];
-    cities?: string[];
-  }>;
-}
-
-async function fetchLibrariesFromApi(query: string) {
-  const response = await fetch(`/api/libraries?${query}`);
-  if (!response.ok) {
-    throw new Error("Failed to fetch libraries");
-  }
-  return response.json() as Promise<LibrariesResult>;
-}
+const fetchLibraries = async (
+  params: LibraryFilters
+): Promise<LibrariesResult> => {
+  const query = buildLibraryQuery({ ...params, limit: 12 });
+  const data = await api.get<LibrariesResult>(`/libraries?${query}`);
+  return data;
+};
 
 export function LibrariesExplorer() {
   const router = useRouter();
@@ -105,6 +98,7 @@ export function LibrariesExplorer() {
     setDraft(urlFilters);
   }, [urlFilters]);
 
+  // Debounce syncing of draft filters to URL
   useEffect(() => {
     if (skipDebounceSync.current) {
       skipDebounceSync.current = false;
@@ -124,6 +118,7 @@ export function LibrariesExplorer() {
     }
   }, [debouncedFilters, urlFilters, updateUrl]);
 
+  // Fetch libraries from backend when urlFilters change
   useEffect(() => {
     let cancelled = false;
 
@@ -131,9 +126,7 @@ export function LibrariesExplorer() {
       setLoading(true);
       setError(null);
       try {
-        const params = filtersToSearchParams(urlFilters);
-        params.set("limit", "12");
-        const data = await fetchLibrariesFromApi(params.toString());
+        const data = await fetchLibraries(urlFilters);
         if (!cancelled) setResult(data);
       } catch {
         if (!cancelled) setError("Could not load libraries. Please try again.");
@@ -148,10 +141,12 @@ export function LibrariesExplorer() {
     };
   }, [urlFilters]);
 
+  // Load states on initial mount
   useEffect(() => {
     void fetchLocations().then((data) => setStates(data.states ?? []));
   }, []);
 
+  // Cascading districts when state changes
   useEffect(() => {
     if (!draft.state) {
       setDistricts([]);
@@ -162,6 +157,7 @@ export function LibrariesExplorer() {
     );
   }, [draft.state]);
 
+  // Cascading cities when state and district are selected
   useEffect(() => {
     if (!draft.state || !draft.district) {
       setCities([]);
@@ -209,14 +205,15 @@ export function LibrariesExplorer() {
     updateUrl(DEFAULT_FILTERS);
   };
 
-  const cityLabel = urlFilters.city || "India";
+  const locationLabel =
+    urlFilters.city || urlFilters.district || urlFilters.state || "India";
 
   return (
     <div className="min-h-screen bg-sand-100 text-ink">
       <div className="relative -mt-[var(--header-height)] overflow-hidden pt-[var(--header-height)]">
         <div className="pointer-events-none absolute inset-0">
           <div className="absolute -left-24 top-24 h-48 w-48 rounded-full bg-sage-200/60 blur-3xl" />
-          <div className="absolute right-[-60px] top-24 h-56 w-56 rounded-full bg-sage-100/70 blur-3xl" />
+          <div className="absolute -right-16 top-24 h-56 w-56 rounded-full bg-sage-100/70 blur-3xl" />
         </div>
         <div className="relative z-10 mx-auto w-full max-w-7xl px-4 pb-8 pt-4 sm:px-6">
           <p className="text-sm font-semibold uppercase tracking-wide text-forest-900/70">
@@ -307,28 +304,34 @@ export function LibrariesExplorer() {
                     ₹{draft.feeMin} – ₹{draft.feeMax}/month
                   </span>
                 </div>
-                <input
-                  type="range"
-                  min={500}
-                  max={5000}
-                  step={50}
-                  value={draft.feeMin}
-                  onChange={(event) =>
-                    setDraftField("feeMin", Number(event.target.value))
-                  }
-                  className="accent-[#16a34a]"
-                />
-                <input
-                  type="range"
-                  min={500}
-                  max={5000}
-                  step={50}
-                  value={draft.feeMax}
-                  onChange={(event) =>
-                    setDraftField("feeMax", Number(event.target.value))
-                  }
-                  className="accent-[#16a34a]"
-                />
+                <div className="grid gap-1">
+                  <span className="text-xs text-forest-900/60">Min fee: ₹{draft.feeMin}</span>
+                  <input
+                    type="range"
+                    min={500}
+                    max={5000}
+                    step={50}
+                    value={draft.feeMin}
+                    onChange={(event) =>
+                      setDraftField("feeMin", Number(event.target.value))
+                    }
+                    className="accent-[#16a34a]"
+                  />
+                </div>
+                <div className="grid gap-1">
+                  <span className="text-xs text-forest-900/60">Max fee: ₹{draft.feeMax}</span>
+                  <input
+                    type="range"
+                    min={500}
+                    max={5000}
+                    step={50}
+                    value={draft.feeMax}
+                    onChange={(event) =>
+                      setDraftField("feeMax", Number(event.target.value))
+                    }
+                    className="accent-[#16a34a]"
+                  />
+                </div>
               </div>
 
               <div className="grid gap-2">
@@ -339,7 +342,7 @@ export function LibrariesExplorer() {
                   {FACILITY_OPTIONS.map((facility) => (
                     <label
                       key={facility}
-                      className="flex items-center gap-2 text-sm text-forest-900/80"
+                      className="flex items-center gap-2 text-sm text-forest-900/80 cursor-pointer"
                     >
                       <input
                         type="checkbox"
@@ -361,7 +364,7 @@ export function LibrariesExplorer() {
                   {STUDENT_TYPE_OPTIONS.map((type) => (
                     <label
                       key={type.value}
-                      className="flex items-center gap-2 text-sm text-forest-900/80"
+                      className="flex items-center gap-2 text-sm text-forest-900/80 cursor-pointer"
                     >
                       <input
                         type="radio"
@@ -373,17 +376,19 @@ export function LibrariesExplorer() {
                       {type.label}
                     </label>
                   ))}
-                  <button
-                    type="button"
-                    onClick={() => setDraftField("examType", "")}
-                    className="text-left text-xs font-medium text-[#16a34a] hover:underline"
-                  >
-                    Clear student type
-                  </button>
+                  {draft.examType ? (
+                    <button
+                      type="button"
+                      onClick={() => setDraftField("examType", "")}
+                      className="text-left text-xs font-medium text-[#16a34a] hover:underline"
+                    >
+                      Clear student type
+                    </button>
+                  ) : null}
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm font-semibold text-forest-900">
+              <label className="flex items-center gap-2 text-sm font-semibold text-forest-900 cursor-pointer">
                 <input
                   type="checkbox"
                   checked={draft.availableOnly}
@@ -435,7 +440,7 @@ export function LibrariesExplorer() {
               <p className="text-sm text-forest-900/70">
                 {loading
                   ? "Searching libraries..."
-                  : `${result?.total ?? 0} libraries found in ${cityLabel}`}
+                  : `${result?.total ?? 0} libraries found in ${locationLabel}`}
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <label className="flex items-center gap-2 text-sm font-semibold text-forest-900">
@@ -538,13 +543,16 @@ export function LibrariesExplorer() {
                     key={`${urlFilters.page}-${searchParams.toString()}`}
                     staggerDelay={0.07}
                   >
-                    {result?.libraries.map((library) => (
-                      <LibraryCard
-                        key={library.id}
-                        library={library}
-                        view={urlFilters.view}
-                      />
-                    ))}
+                    {result?.libraries.map((library) => {
+                      const id = (library._id ?? library.id)?.toString() ?? "";
+                      return (
+                        <LibraryCard
+                          key={id}
+                          library={library}
+                          view={urlFilters.view}
+                        />
+                      );
+                    })}
                   </AnimatedGrid>
                 </div>
               )}

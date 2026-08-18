@@ -21,6 +21,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+  ),
   title: "Scholar's Hub",
   description: "Find your study spot, in seconds.",
 };

@@ -17,12 +17,31 @@ import adminRoutes from "./routes/admin";
 
 const app = express();
 const PORT = Number(process.env.PORT ?? 5000);
-const CLIENT_URL = process.env.CLIENT_URL ?? "http://localhost:3000";
+const rawClientUrl = process.env.CLIENT_URL ?? "http://localhost:3000";
+
+// Support comma-separated list of origins in CLIENT_URL (e.g. "https://scholarshub.in,https://www.scholarshub.in")
+const allowedOrigins = rawClientUrl
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/$/, ""))
+  .filter(Boolean);
 
 // ── Middleware ─────────────────────────────────────────────────────────────
 app.use(
   cors({
-    origin: CLIENT_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, curl, or same-origin server requests)
+      if (!origin) return callback(null, true);
+      const normalizedOrigin = origin.replace(/\/$/, "");
+      if (
+        allowedOrigins.includes(normalizedOrigin) ||
+        (process.env.NODE_ENV !== "production" &&
+          (normalizedOrigin.includes("localhost") ||
+            normalizedOrigin.includes("127.0.0.1")))
+      ) {
+        return callback(null, true);
+      }
+      return callback(null, false);
+    },
     credentials: true, // required for cookies to be sent cross-origin
   })
 );
@@ -56,7 +75,7 @@ app.use((_req, res) => {
 app.listen(PORT, () => {
   console.log(`\n🚀  Scholar's Hub API server`);
   console.log(`   Listening at  http://localhost:${PORT}`);
-  console.log(`   CORS origin   ${CLIENT_URL}`);
+  console.log(`   Allowed origins: ${allowedOrigins.join(", ")}`);
   console.log(`   Environment   ${process.env.NODE_ENV ?? "development"}\n`);
 });
 

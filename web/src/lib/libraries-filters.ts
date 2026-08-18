@@ -10,6 +10,7 @@ export const FACILITY_OPTIONS = [
   "Washroom",
   "Generator",
   "Study Material",
+  "Power Backup",
 ] as const;
 
 export const STUDENT_TYPE_OPTIONS = [

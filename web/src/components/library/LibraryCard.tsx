@@ -6,7 +6,7 @@ import { Star } from "lucide-react";
 import TiltedCard from "@/components/TiltedCard/TiltedCard";
 import { Button } from "@/components/ui/button";
 import { getFacilityIcon } from "@/lib/facility-icons";
-import type { LibrarySummary } from "@/lib/mock-data";
+import type { LibraryItem } from "@/lib/libraries-query";
 import { cn } from "@/lib/utils";
 
 const toneStyles: Record<string, string> = {
@@ -16,11 +16,11 @@ const toneStyles: Record<string, string> = {
 };
 
 type LibraryCardProps = {
-  library: LibrarySummary;
+  library: LibraryItem;
   view?: "grid" | "list";
 };
 
-function getSeatBadge(seats: number) {
+function getSeatBadge(seats = 0) {
   if (seats <= 0) {
     return {
       label: "Full",
@@ -40,8 +40,12 @@ function getSeatBadge(seats: number) {
 }
 
 export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
-  const badge = getSeatBadge(library.availableSeats);
-  const topFacilities = library.facilities.slice(0, 3);
+  const libraryId = (library._id ?? library.id)?.toString() ?? "";
+  const badge = getSeatBadge(library.availableSeats ?? 0);
+  const topFacilities = (library.facilities ?? []).slice(0, 3);
+  const rating = library.ratingAvg ?? library.rating ?? 0;
+  const coverUrl =
+    library.photos?.find((p) => p.isCover)?.url ?? library.photos?.[0]?.url;
 
   const cardBody = (
     <article
@@ -52,21 +56,32 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
     >
       <div
         className={cn(
-          "relative shrink-0 overflow-hidden",
+          "relative shrink-0 overflow-hidden bg-sage-100",
           view === "list" ? "md:w-72" : "w-full"
         )}
       >
-        <div
-          className={cn(
-            "aspect-video w-full",
-            toneStyles[library.coverTone]
-          )}
-          role="img"
-          aria-label={`${library.name} cover`}
-        />
+        {coverUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={coverUrl}
+            alt={`${library.name} cover`}
+            className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-105"
+          />
+        ) : (
+          <div
+            className={cn(
+              "aspect-video w-full",
+              library.coverTone
+                ? toneStyles[library.coverTone]
+                : "bg-gradient-to-br from-sage-100 via-sage-200 to-sand-100"
+            )}
+            role="img"
+            aria-label={`${library.name} cover`}
+          />
+        )}
         <span
           className={cn(
-            "absolute top-3 right-3 rounded-full px-3 py-1 text-xs font-semibold shadow-sm",
+            "absolute right-3 top-3 rounded-full px-3 py-1 text-xs font-semibold shadow-sm",
             badge.className
           )}
         >
@@ -80,17 +95,20 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
             {library.name}
           </h3>
           <p className="text-sm text-forest-900/70">
-            {library.city}, {library.district}
+            {library.city}
+            {library.district && library.district !== library.city
+              ? `, ${library.district}`
+              : ""}
           </p>
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
           <span className="inline-flex items-center gap-1 font-semibold text-forest-900">
             <Star className="size-4 fill-amber-400 text-amber-400" />
-            {library.rating.toFixed(1)}
+            {rating.toFixed(1)}
           </span>
           <span className="text-forest-900/70">
-            Starting ₹{library.monthlyFee.toLocaleString("en-IN")}/month
+            Starting ₹{(library.monthlyFee ?? 0).toLocaleString("en-IN")}/month
           </span>
         </div>
 
@@ -114,7 +132,7 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
             asChild
             className="w-full bg-[#16a34a] text-white hover:bg-[#15803d]"
           >
-            <Link href={`/library/${library.id}`}>View Details</Link>
+            <Link href={`/library/${libraryId}`}>View Details</Link>
           </Button>
         </div>
       </div>

@@ -90,7 +90,8 @@ async function fetchFromAPI(id: string): Promise<LibraryPageData | null> {
   // In Server Components this runs on the server — call the Express API directly.
   // next.config.ts rewrites don't apply to server-side fetches, so we use the
   // API server URL directly.
-  const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:5000";
+  const apiBase =
+    process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:5000";
 
   const [libRes, slotsRes, reviewsRes] = await Promise.all([
     fetch(`${apiBase}/api/libraries/${id}`, { cache: "no-store" }),
