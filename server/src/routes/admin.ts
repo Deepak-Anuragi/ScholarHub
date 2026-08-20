@@ -34,7 +34,7 @@ router.get("/stats", async (_req: Request, res: Response): Promise<void> => {
       UserModel.aggregate([{ $match: { role: "STUDENT" } }, { $group: { _id: "$examType", count: { $sum: 1 } } }]),
     ]);
 
-    const revenueMap = new Map(revenueChart.map((r) => [`${r._id.year}-${r._id.month}`, r.total as number]));
+    const revenueMap = new Map(revenueChart.map((r: any) => [`${r._id.year}-${r._id.month}`, r.total as number]));
     const revenueChart12Months = Array.from({ length: 12 }, (_, i) => {
       const date = new Date(now.getFullYear(), now.getMonth() - 11 + i, 1);
       const year = date.getFullYear();
@@ -80,12 +80,12 @@ router.get("/libraries", async (req: Request, res: Response): Promise<void> => {
 
     const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
     const revenueAgg = await PayoutLedgerModel.aggregate([
-      { $match: { createdAt: { $gte: startOfMonth }, libraryId: { $in: libraries.map((l) => l._id) } } },
+      { $match: { createdAt: { $gte: startOfMonth }, libraryId: { $in: libraries.map((l: any) => l._id) } } },
       { $group: { _id: "$libraryId", monthlyRevenue: { $sum: "$totalAmount" } } },
     ]);
-    const revenueMap = new Map(revenueAgg.map((r) => [String(r._id), r.monthlyRevenue as number]));
+    const revenueMap = new Map(revenueAgg.map((r: any) => [String(r._id), r.monthlyRevenue as number]));
 
-    const serialized = libraries.map((lib) => ({
+    const serialized = libraries.map((lib: any) => ({
       ...lib, _id: String(lib._id),
       monthlyRevenue: revenueMap.get(String(lib._id)) ?? 0,
       ownerId: lib.ownerId && typeof lib.ownerId === "object"
@@ -170,14 +170,14 @@ router.get("/students", async (req: Request, res: Response): Promise<void> => {
     if (examType) filter.examType = examType;
 
     const students = await UserModel.find(filter).select("-passwordHash").sort({ createdAt: -1 }).lean();
-    const activeBookings = await BookingModel.find({ studentId: { $in: students.map((s) => s._id) }, status: "ACTIVE" }).populate("libraryId", "name city").lean();
+    const activeBookings = await BookingModel.find({ studentId: { $in: students.map((s: any) => s._id) }, status: "ACTIVE" }).populate("libraryId", "name city").lean();
 
-    const bookingMap = new Map(activeBookings.map((b) => [String(b.studentId), b]));
-    const result = students.map((s) => {
-      const b = bookingMap.get(String(s._id));
+    const bookingMap = new Map(activeBookings.map((b: any) => [String(b.studentId), b]));
+    const result = students.map((s: any) => {
+      const b = bookingMap.get(String(s._id)) as any;
       return {
         ...s, _id: String(s._id),
-        activeBooking: b ? { ...b, _id: String(b._id), studentId: String(b.studentId), libraryId: b.libraryId && typeof b.libraryId === "object" ? { ...(b.libraryId as Record<string, unknown>), _id: String((b.libraryId as { _id: unknown })._id) } : b.libraryId ? String(b.libraryId) : null } : null,
+        activeBooking: b ? { ...b, _id: String(b._id), studentId: String(b.studentId), libraryId: b.libraryId && typeof b.libraryId === "object" ? { ...b.libraryId, _id: String(b.libraryId._id) } : b.libraryId ? String(b.libraryId) : null } : null,
       };
     });
 
@@ -202,7 +202,7 @@ router.get("/revenue", async (_req: Request, res: Response): Promise<void> => {
       PayoutLedgerModel.aggregate([{ $group: { _id: null, platform: { $sum: "$platformShare" }, total: { $sum: "$totalAmount" } } }]),
     ]);
 
-    const serialized = ledger.map((row) => ({
+    const serialized = ledger.map((row: any) => ({
       ...row, _id: String(row._id),
       bookingId: row.bookingId ? String(row.bookingId) : null,
       libraryId: row.libraryId && typeof row.libraryId === "object" ? { ...(row.libraryId as Record<string, unknown>), _id: String((row.libraryId as { _id: unknown })._id) } : row.libraryId ? String(row.libraryId) : null,
@@ -234,7 +234,7 @@ router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
     const courses = await CourseModel.find().populate("createdBy", "name").sort({ createdAt: -1 }).lean();
-    res.json({ courses: courses.map((c) => ({ ...c, _id: String(c._id), createdBy: c.createdBy && typeof c.createdBy === "object" ? { ...(c.createdBy as Record<string, unknown>), _id: String((c.createdBy as { _id: unknown })._id) } : c.createdBy ? String(c.createdBy) : null })) });
+    res.json({ courses: courses.map((c: any) => ({ ...c, _id: String(c._id), createdBy: c.createdBy && typeof c.createdBy === "object" ? { ...(c.createdBy as Record<string, unknown>), _id: String((c.createdBy as { _id: unknown })._id) } : c.createdBy ? String(c.createdBy) : null })) });
   } catch (err) {
     console.error("[admin/courses GET]", err);
     res.status(500).json({ error: "Failed." });
@@ -282,10 +282,10 @@ router.post("/notifications", async (req: Request, res: Response): Promise<void>
     if (recipients.length === 0) { res.json({ createdCount: 0 }); return; }
 
     const docs = await NotificationModel.insertMany(
-      recipients.map((r) => ({ userId: r._id, type: "ADMIN_ANNOUNCEMENT", title: title.trim(), message: message.trim(), link: link?.trim() || undefined }))
+      recipients.map((r: any) => ({ userId: r._id, type: "ADMIN_ANNOUNCEMENT", title: title.trim(), message: message.trim(), link: link?.trim() || undefined }))
     );
 
-    res.json({ createdCount: docs.length, notificationIds: docs.map((d) => String(d._id)) });
+    res.json({ createdCount: docs.length, notificationIds: docs.map((d: any) => String(d._id)) });
   } catch (err) {
     console.error("[admin/notifications POST]", err);
     res.status(500).json({ error: "Failed to send notifications." });

@@ -39,7 +39,7 @@ router.get("/threads", requireAuth, async (req: Request, res: Response): Promise
     ]);
 
     const enriched = await Promise.all(
-      threads.map(async (t) => {
+      threads.map(async (t: any) => {
         const otherId = String(t.lastMessage.senderId) === session.id
           ? t.lastMessage.receiverId : t.lastMessage.senderId;
         const other = await UserModel.findById(otherId).select("name avatarUrl role").lean();
@@ -80,7 +80,7 @@ router.get("/:userId", requireAuth, async (req: Request, res: Response): Promise
 
     await MessageModel.updateMany({ senderId: otherId, receiverId: myId, isRead: false }, { isRead: true });
 
-    const serialized = messages.map((m) => ({
+    const serialized = messages.map((m: any) => ({
       ...m,
       _id: String(m._id),
       senderId: m.senderId && typeof m.senderId === "object"
