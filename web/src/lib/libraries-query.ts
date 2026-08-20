@@ -7,6 +7,8 @@ export const EXAM_TYPE_MAP: Record<string, string> = {
   professional: "Professional",
 };
 
+
+
 export type LibrarySort =
   | "relevance"
   | "rating"
