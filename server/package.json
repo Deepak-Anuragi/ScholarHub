@@ -5,11 +5,11 @@
   "main": "dist/index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "build": "tsc",
+    "build": "npm install --include=dev && tsc",
     "start": "node dist/index.js"
   },
   "engines": {
-    "node": ">=20.0.0"
+    "node": "20.x || 22.x"
   },
   "dependencies": {
     "@types/bcryptjs": "2.4.6",
