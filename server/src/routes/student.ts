@@ -6,6 +6,8 @@ import BookingModel from "../models/Booking";
 import ReviewModel from "../models/Review";
 import StudentCourseModel from "../models/StudentCourse";
 import NotificationModel from "../models/Notification";
+import WaitlistModel from "../models/Waitlist";
+import UserModel from "../models/User";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -123,11 +125,53 @@ router.get("/payments", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
-export default router;
-
 // ─── WAITLIST ─────────────────────────────────────────────────────────────
-import WaitlistModel from "../models/Waitlist";
-import UserModel from "../models/User";
+router.post("/waitlist", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const studentId = new mongoose.Types.ObjectId(user.id);
+
+    const { libraryId, slotId } = req.body as { libraryId?: string; slotId?: string };
+    if (!libraryId || !slotId) {
+      res.status(400).json({ error: "libraryId and slotId are required." });
+      return;
+    }
+
+    const libOid = new mongoose.Types.ObjectId(libraryId);
+    const slotOid = new mongoose.Types.ObjectId(slotId);
+
+    const existing = await WaitlistModel.findOne({
+      studentId,
+      libraryId: libOid,
+      slotId: slotOid,
+    });
+    if (existing) {
+      res.status(409).json({ error: "You are already on this waitlist." });
+      return;
+    }
+
+    const position =
+      (await WaitlistModel.countDocuments({ libraryId: libOid, slotId: slotOid })) + 1;
+
+    const entry = await WaitlistModel.create({
+      studentId,
+      libraryId: libOid,
+      slotId: slotOid,
+      position,
+    });
+
+    const populated = await WaitlistModel.findById(entry._id)
+      .populate("libraryId", "name city")
+      .populate("slotId", "name startTime endTime")
+      .lean();
+
+    res.status(201).json({ entry: populated });
+  } catch (err) {
+    console.error("[student/waitlist POST]", err);
+    res.status(500).json({ error: "Failed to join waitlist." });
+  }
+});
 
 router.get("/waitlist", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -375,3 +419,5 @@ router.patch("/profile", async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: "Failed to update profile." });
   }
 });
+
+export default router;

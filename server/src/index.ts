@@ -14,6 +14,8 @@ import chatRoutes from "./routes/chat";
 import ownerRoutes from "./routes/owner";
 import studentRoutes from "./routes/student";
 import adminRoutes from "./routes/admin";
+import notificationsRoutes from "./routes/notifications";
+import { setSocketIO } from "./lib/socket";
 
 import http from "http";
 import { Server, Socket } from "socket.io";
@@ -76,6 +78,8 @@ const io = new Server(server, {
     credentials: true,
   },
 });
+
+setSocketIO(io);
 
 interface AuthenticatedSocket extends Socket {
   userId?: string;
@@ -177,6 +181,7 @@ app.use("/api/chat", chatRoutes);
 app.use("/api/owner", ownerRoutes);
 app.use("/api/student", studentRoutes);
 app.use("/api/admin", adminRoutes);
+app.use("/api/notifications", notificationsRoutes);
 
 // ── Health check ───────────────────────────────────────────────────────────
 app.get("/health", (_req, res) => {

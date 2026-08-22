@@ -9,6 +9,8 @@ import SlotModel from "../models/Slot";
 import WaitlistModel from "../models/Waitlist";
 import NotificationModel from "../models/Notification";
 import PayoutLedgerModel from "../models/PayoutLedger";
+import { sendSeatAlertEmail } from "../lib/email";
+import { emitNotificationCount } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -259,13 +261,46 @@ router.patch("/slots/:id", async (req: Request, res: Response): Promise<void> =>
 
     const freed = (updatedSlot?.availableSeats ?? 0) - prevSlot.availableSeats;
     if (freed > 0) {
-      const waitlisted = await WaitlistModel.find({ slotId: req.params.id }).sort({ position: 1 }).limit(freed).lean();
-      for (const entry of waitlisted) {
+      const waiting = await WaitlistModel.find({ slotId: req.params.id })
+        .sort({ position: 1 })
+        .limit(freed)
+        .populate("studentId", "name email phone fcmToken");
+
+      for (const entry of waiting) {
+        const student = entry.studentId as {
+          _id: mongoose.Types.ObjectId;
+          name?: string;
+          email?: string;
+        };
+
         await NotificationModel.create({
-          userId: entry.studentId, type: "WAITLIST_AVAILABLE", title: "Seat Available!",
-          message: `A seat opened up at ${library.name}. Book now before it fills up.`,
-          link: `/library/${library._id}`, isRead: false,
+          userId: student._id,
+          type: "SEAT_ALERT",
+          title: "Seat Available!",
+          message: `A seat opened at ${library.name}. You have 2 hrs to book.`,
+          link: `/library/${entry.libraryId}`,
+          isRead: false,
         });
+
+        if (student.email) {
+          try {
+            await sendSeatAlertEmail(
+              student.email,
+              student.name ?? "Student",
+              library.name,
+              `/library/${entry.libraryId}`
+            );
+          } catch (emailErr) {
+            console.error("[owner/slots PATCH] seat alert email failed:", emailErr);
+          }
+        }
+
+        await WaitlistModel.findByIdAndUpdate(entry._id, {
+          notified: true,
+          heldUntil: new Date(Date.now() + 2 * 60 * 60 * 1000),
+        });
+
+        await emitNotificationCount(String(student._id));
       }
     }
 
