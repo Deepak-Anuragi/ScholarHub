@@ -7,6 +7,9 @@ import AnimatedContent from "@/components/AnimatedContent";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+import { api } from "@/lib/api";
+import { Download } from "lucide-react";
+
 type Course = {
   _id: string;
   title: string;
@@ -86,9 +89,24 @@ function CourseCard({
 
         <div className="mt-auto pt-4">
           {isEnrolled ? (
-            <div className="flex items-center gap-2 rounded-full bg-[#16a34a]/10 px-3 py-1.5 text-xs font-semibold text-[#16a34a]">
-              <Check className="size-3.5" />
-              Enrolled
+            <div className="flex gap-2">
+              <div className="flex flex-1 items-center justify-center gap-1.5 rounded-full bg-[#16a34a]/10 px-3 py-1.5 text-xs font-semibold text-[#16a34a]">
+                <Check className="size-3.5" />
+                Enrolled
+              </div>
+              {course.fileUrl && (
+                <Button
+                  asChild
+                  size="sm"
+                  variant="outline"
+                  className="rounded-full text-xs text-[#16a34a] border-[#16a34a]/30 hover:bg-[#16a34a]/10"
+                >
+                  <a href={course.fileUrl} target="_blank" rel="noopener noreferrer" download>
+                    <Download className="size-3.5 mr-1" />
+                    Material
+                  </a>
+                </Button>
+              )}
             </div>
           ) : (
             <Button
@@ -124,19 +142,14 @@ export default function CoursesPage() {
     setLoading(true);
     const examType = tab === "All" ? "all" : tab;
     Promise.all([
-      fetch(`/api/courses?examType=${examType}`).then((r) => r.json()),
-      fetch("/api/student/courses", { credentials: "include" }).then((r) =>
-        r.json()
-      ),
+      api.get<{ courses?: Course[] }>(`/courses?examType=${examType}`).catch(() => ({ courses: [] })),
+      api.get<{ enrolled?: EnrolledCourse[] }>("/student/courses").catch(() => ({ enrolled: [] })),
     ])
       .then(
-        ([coursesData, enrolledData]: [
-          { courses?: Course[] },
-          { enrolled?: EnrolledCourse[] }
-        ]) => {
+        ([coursesData, enrolledData]) => {
           setCourses(coursesData.courses ?? []);
           const ids = new Set(
-            (enrolledData.enrolled ?? []).map((e) => e.courseId._id)
+            (enrolledData.enrolled ?? []).map((e) => e.courseId?._id || (e.courseId as unknown as string)).filter(Boolean)
           );
           setEnrolledIds(ids);
         }
@@ -147,20 +160,17 @@ export default function CoursesPage() {
   const handleEnroll = async (courseId: string) => {
     setEnrollingId(courseId);
     try {
-      const res = await fetch(`/api/courses/${courseId}/enroll`, {
-        method: "POST",
-        credentials: "include",
-      });
-      if (res.ok) {
-        setEnrolledIds((prev) => new Set([...prev, courseId]));
-        setCourses((prev) =>
-          prev.map((c) =>
-            c._id === courseId
-              ? { ...c, enrolledCount: c.enrolledCount + 1 }
-              : c
-          )
-        );
-      }
+      await api.post(`/courses/${courseId}/enroll`);
+      setEnrolledIds((prev) => new Set([...prev, courseId]));
+      setCourses((prev) =>
+        prev.map((c) =>
+          c._id === courseId
+            ? { ...c, enrolledCount: c.enrolledCount + 1 }
+            : c
+        )
+      );
+    } catch (err) {
+      console.error("Failed to enroll:", err);
     } finally {
       setEnrollingId(null);
     }

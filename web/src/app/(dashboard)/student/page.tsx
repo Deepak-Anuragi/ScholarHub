@@ -10,19 +10,24 @@ import {
   Star,
   CalendarDays,
   ArrowRight,
+  IdCard,
+  X,
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import BlurText from "@/components/BlurText/BlurText";
+import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
 import { CountUp } from "@/components/home/CountUp";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type ActiveBooking = {
   _id: string;
+  studentId: string;
   libraryId: { _id: string; name: string; address: string; city: string };
   slotId?: { name: string; startTime: string; endTime: string };
   plan: string;
@@ -30,6 +35,7 @@ type ActiveBooking = {
   endDate: string;
   amountPaid: number;
   status: string;
+  seatNumber?: string;
 };
 
 type Notification = {
@@ -76,12 +82,18 @@ function totalDays(start: string, end: string) {
 
 // ─── Active Booking Card ──────────────────────────────────────────────────────
 
-function ActiveBookingCard({ booking }: { booking: ActiveBooking }) {
+function ActiveBookingCard({
+  booking,
+  onOpenDigitalId,
+}: {
+  booking: ActiveBooking;
+  onOpenDigitalId: () => void;
+}) {
   const remaining = daysRemaining(booking.endDate);
   const total = totalDays(booking.startDate, booking.endDate);
   const elapsed = total - remaining;
-  const pct = Math.round((elapsed / total) * 100);
-  const isExpiringSoon = remaining <= 30;
+  const pct = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)));
+  const isExpiringSoon = remaining < 30;
 
   return (
     <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
@@ -139,7 +151,7 @@ function ActiveBookingCard({ booking }: { booking: ActiveBooking }) {
           <div>
             <div className="flex items-end justify-between text-sm">
               <span className="font-semibold text-forest-900">
-                {remaining} days left
+                {remaining} days remaining
               </span>
               <span className="text-forest-900/50">{pct}% used</span>
             </div>
@@ -147,7 +159,7 @@ function ActiveBookingCard({ booking }: { booking: ActiveBooking }) {
               <div
                 className={cn(
                   "h-2 rounded-full transition-all duration-700",
-                  isExpiringSoon ? "bg-amber-400" : "bg-[#16a34a]"
+                  isExpiringSoon ? "bg-amber-500" : "bg-[#16a34a]"
                 )}
                 style={{ width: `${pct}%` }}
               />
@@ -161,11 +173,12 @@ function ActiveBookingCard({ booking }: { booking: ActiveBooking }) {
 
           <div className="mt-4 flex gap-2">
             <Button
-              asChild
+              onClick={onOpenDigitalId}
               size="sm"
               className="flex-1 bg-[#16a34a] text-white hover:bg-[#15803d]"
             >
-              <Link href="/student/bookings">Digital ID</Link>
+              <IdCard className="mr-1.5 size-4" />
+              Digital ID
             </Button>
             {isExpiringSoon && (
               <Button asChild variant="outline" size="sm" className="flex-1">
@@ -220,21 +233,24 @@ function StatCard({
 
 export default function StudentOverviewPage() {
   const { user } = useAuth();
-  const [activeBookings, setActiveBookings] = useState<ActiveBooking[]>([]);
+  const [activeBooking, setActiveBooking] = useState<ActiveBooking | null>(null);
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showIdModal, setShowIdModal] = useState(false);
 
   useEffect(() => {
     Promise.all([
-      fetch("/api/student/bookings", { credentials: "include" })
-        .then((r) => r.json())
-        .then((d: { active?: ActiveBooking[] }) => d.active ?? []),
-      fetch("/api/student/stats", { credentials: "include" })
-        .then((r) => r.json())
-        .then((d: Stats) => d),
+      api
+        .get<{ booking?: ActiveBooking; active?: ActiveBooking[] }>("/student/bookings/active")
+        .then((res) => res.booking ?? res.active?.[0] ?? null)
+        .catch(() => null),
+      api
+        .get<Stats>("/student/stats")
+        .then((s) => s)
+        .catch(() => null),
     ])
-      .then(([bookings, s]) => {
-        setActiveBookings(bookings);
+      .then(([booking, s]) => {
+        setActiveBooking(booking);
         setStats(s);
       })
       .finally(() => setLoading(false));
@@ -270,9 +286,12 @@ export default function StudentOverviewPage() {
       <div className="mt-6">
         {loading ? (
           <div className="h-52 animate-pulse rounded-card bg-white/80" />
-        ) : activeBookings.length > 0 ? (
+        ) : activeBooking ? (
           <AnimatedContent distance={24} duration={0.5} threshold={0} delay={0.05}>
-            <ActiveBookingCard booking={activeBookings[0]} />
+            <ActiveBookingCard
+              booking={activeBooking}
+              onOpenDigitalId={() => setShowIdModal(true)}
+            />
           </AnimatedContent>
         ) : (
           <AnimatedContent distance={24} duration={0.5} threshold={0} delay={0.05}>
@@ -369,6 +388,36 @@ export default function StudentOverviewPage() {
             </div>
           </div>
         </AnimatedContent>
+      )}
+
+      {/* Digital ID Modal */}
+      {showIdModal && activeBooking && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
+            <button
+              onClick={() => setShowIdModal(false)}
+              className="absolute right-4 top-4 rounded-full p-1 text-forest-900/40 hover:bg-sage-100 hover:text-forest-900"
+            >
+              <X className="size-5" />
+            </button>
+            <p className="mb-4 font-display text-lg text-forest-900">
+              Student Digital ID
+            </p>
+            <DigitalIDCard
+              bookingId={activeBooking._id}
+              studentId={activeBooking.studentId || user?.id || ""}
+              studentName={user?.name || "Student"}
+              studentEmail={user?.email || ""}
+              avatarUrl={user?.avatarUrl}
+              libraryName={activeBooking.libraryId.name}
+              libraryId={activeBooking.libraryId._id}
+              slotName={activeBooking.slotId?.name}
+              plan={activeBooking.plan}
+              startDate={activeBooking.startDate}
+              endDate={activeBooking.endDate}
+            />
+          </div>
+        </div>
       )}
     </div>
   );

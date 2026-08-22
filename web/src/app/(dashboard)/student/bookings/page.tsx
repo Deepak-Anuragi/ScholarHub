@@ -8,8 +8,11 @@ import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
 import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";
 
+import { api } from "@/lib/api";
+
 type Booking = {
   _id: string;
+  studentId?: string;
   libraryId: { _id: string; name: string; address: string; city: string };
   slotId?: { name: string; startTime: string; endTime: string };
   plan: string;
@@ -18,6 +21,7 @@ type Booking = {
   amountPaid: number;
   status: "ACTIVE" | "EXPIRED" | "CANCELLED";
   paymentStatus: string;
+  seatNumber?: string;
 };
 
 function StatusBadge({ status }: { status: Booking["status"] }) {
@@ -53,11 +57,15 @@ export default function BookingsPage() {
   const [idModal, setIdModal] = useState<Booking | null>(null);
 
   useEffect(() => {
-    fetch("/api/student/bookings", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { active?: Booking[]; past?: Booking[] }) => {
+    api
+      .get<{ active?: Booking[]; past?: Booking[] }>("/student/bookings")
+      .then((d) => {
         setActive(d.active ?? []);
         setPast(d.past ?? []);
+      })
+      .catch(() => {
+        setActive([]);
+        setPast([]);
       })
       .finally(() => setLoading(false));
   }, []);

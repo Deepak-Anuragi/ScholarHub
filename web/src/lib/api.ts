@@ -20,13 +20,26 @@ function normalizeEndpoint(endpoint: string): string {
   return apiPath;
 }
 
+function getAuthHeaders(): Record<string, string> {
+  const headers: Record<string, string> = {
+    "Content-Type": "application/json",
+  };
+  if (typeof window !== "undefined") {
+    const token = localStorage.getItem("scholars_token") || localStorage.getItem("token");
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`;
+    }
+  }
+  return headers;
+}
+
 export const api = {
   async get<T = unknown>(endpoint: string, init?: RequestInit): Promise<T> {
     const url = normalizeEndpoint(endpoint);
     const res = await fetch(url, {
       method: "GET",
       headers: {
-        "Content-Type": "application/json",
+        ...getAuthHeaders(),
         ...(init?.headers ?? {}),
       },
       credentials: "include",
@@ -53,7 +66,7 @@ export const api = {
     const res = await fetch(url, {
       method: "POST",
       headers: {
-        "Content-Type": "application/json",
+        ...getAuthHeaders(),
         ...(init?.headers ?? {}),
       },
       credentials: "include",
@@ -81,7 +94,7 @@ export const api = {
     const res = await fetch(url, {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json",
+        ...getAuthHeaders(),
         ...(init?.headers ?? {}),
       },
       credentials: "include",
@@ -109,7 +122,7 @@ export const api = {
     const res = await fetch(url, {
       method: "PATCH",
       headers: {
-        "Content-Type": "application/json",
+        ...getAuthHeaders(),
         ...(init?.headers ?? {}),
       },
       credentials: "include",
@@ -133,7 +146,7 @@ export const api = {
     const res = await fetch(url, {
       method: "DELETE",
       headers: {
-        "Content-Type": "application/json",
+        ...getAuthHeaders(),
         ...(init?.headers ?? {}),
       },
       credentials: "include",

@@ -11,6 +11,7 @@
   "dependencies": {
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.4.0",
+    "@react-pdf/renderer": "^4.6.1",
     "@studio-freight/lenis": "^1.0.42",
     "@tanstack/react-table": "^8.21.3",
     "bcryptjs": "^3.0.3",

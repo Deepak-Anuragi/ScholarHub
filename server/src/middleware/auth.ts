@@ -11,7 +11,10 @@ declare global {
 }
 
 export function loadSession(req: Request, _res: Response, next: NextFunction): void {
-  const raw = req.cookies?.scholars_session as string | undefined;
+  let raw = req.cookies?.scholars_session as string | undefined;
+  if (!raw && req.headers.authorization?.startsWith("Bearer ")) {
+    raw = req.headers.authorization.split(" ")[1];
+  }
   req.sessionUser = raw ? decodeSession(raw) : null;
   next();
 }
