@@ -6,6 +6,7 @@ import { BookOpen, Menu } from "lucide-react";
 import { useState } from "react";
 
 import ShinyText from "@/components/ShinyText/ShinyText";
+import { NotificationBell } from "@/components/layout/NotificationBell";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
@@ -190,7 +191,10 @@ function MobileNav({
           {isLoading ? (
             <div className="h-9 w-full animate-pulse rounded-full bg-muted" />
           ) : isAuthenticated ? (
-            <UserMenu />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <UserMenu />
+            </div>
           ) : (
             <AuthButtons onNavigate={() => onOpenChange(false)} />
           )}
@@ -239,7 +243,10 @@ export function Header() {
             {isLoading ? (
               <div className="h-9 w-28 animate-pulse rounded-full bg-muted" />
             ) : isAuthenticated ? (
-              <UserMenu />
+              <>
+                <NotificationBell />
+                <UserMenu />
+              </>
             ) : (
               <AuthButtons />
             )}
