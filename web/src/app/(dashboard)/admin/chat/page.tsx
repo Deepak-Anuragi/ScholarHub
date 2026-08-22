@@ -3,7 +3,7 @@
 import { ChatWindow } from "@/components/chat/ChatWindow";
 import { useAuth } from "@/components/providers/auth-provider";
 
-export default function StudentChatPage() {
+export default function AdminChatPage() {
   const { user } = useAuth();
 
   if (!user) {
@@ -16,7 +16,7 @@ export default function StudentChatPage() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8">
-      <ChatWindow currentUserId={user.id} />
+      <ChatWindow currentUserId={user.id} readOnly={true} />
     </div>
   );
 }

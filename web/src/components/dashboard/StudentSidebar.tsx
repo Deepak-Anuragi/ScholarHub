@@ -19,6 +19,9 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
+import { api } from "@/lib/api";
+import { useEffect, useState } from "react";
+
 const NAV = [
   { href: "/student",          label: "Overview",   icon: LayoutDashboard },
   { href: "/student/bookings", label: "My Bookings", icon: BookMarked },
@@ -44,12 +47,14 @@ function NavItem({
   label,
   icon: Icon,
   exact = false,
+  badge,
   onClick,
 }: {
   href: string;
   label: string;
   icon: React.ElementType;
   exact?: boolean;
+  badge?: number;
   onClick?: () => void;
 }) {
   const pathname = usePathname();
@@ -62,15 +67,27 @@ function NavItem({
       href={href}
       onClick={onClick}
       className={cn(
-        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
+        "flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
         active
           ? "bg-[#16a34a] text-white shadow-sm"
           : "text-forest-900/70 hover:bg-sage-100 hover:text-forest-900"
       )}
       aria-current={active ? "page" : undefined}
     >
-      <Icon className="size-4 shrink-0" aria-hidden />
-      {label}
+      <div className="flex items-center gap-3">
+        <Icon className="size-4 shrink-0" aria-hidden />
+        {label}
+      </div>
+      {Boolean(badge && badge > 0) && (
+        <span
+          className={cn(
+            "flex size-5 items-center justify-center rounded-full text-[10px] font-bold",
+            active ? "bg-white text-[#16a34a]" : "bg-[#16a34a] text-white"
+          )}
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -78,6 +95,15 @@ function NavItem({
 export function StudentSidebar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    api
+      .get<{ unreadCount?: number }>("/chat/unread-count")
+      .then((d) => setUnreadCount(d.unreadCount ?? 0))
+      .catch(() => setUnreadCount(0));
+  }, [user]);
 
   const initials = (user?.name ?? "S")
     .split(" ")
@@ -115,6 +141,7 @@ export function StudentSidebar() {
               label={label}
               icon={icon}
               exact={href === "/student"}
+              badge={href === "/student/chat" ? unreadCount : undefined}
             />
           ))}
         </nav>

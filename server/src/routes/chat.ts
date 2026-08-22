@@ -63,6 +63,22 @@ router.get("/threads", requireAuth, async (req: Request, res: Response): Promise
   }
 });
 
+// ── GET /api/chat/unread-count ────────────────────────────────────────────
+router.get("/unread-count", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const session = req.sessionUser!;
+    await connectDB();
+    const count = await MessageModel.countDocuments({
+      receiverId: new mongoose.Types.ObjectId(session.id),
+      isRead: false,
+    });
+    res.json({ unreadCount: count });
+  } catch (err) {
+    console.error("[chat/unread-count]", err);
+    res.status(500).json({ error: "Failed to fetch unread count." });
+  }
+});
+
 // ── GET /api/chat/:userId ─────────────────────────────────────────────────
 router.get("/:userId", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {

@@ -20,6 +20,9 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
+import { api } from "@/lib/api";
+import { useEffect, useState } from "react";
+
 const NAV = [
   { href: "/owner",           label: "Overview",  icon: LayoutDashboard },
   { href: "/owner/library",   label: "My Library", icon: Building2 },
@@ -44,11 +47,13 @@ function NavItem({
   label,
   icon: Icon,
   exact = false,
+  badge,
 }: {
   href: string;
   label: string;
   icon: React.ElementType;
   exact?: boolean;
+  badge?: number;
 }) {
   const pathname = usePathname();
   const active = exact
@@ -59,15 +64,27 @@ function NavItem({
     <Link
       href={href}
       className={cn(
-        "flex items-center gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
+        "flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
         active
           ? "bg-forest-700 text-white shadow-sm"
           : "text-forest-900/70 hover:bg-sage-100 hover:text-forest-900"
       )}
       aria-current={active ? "page" : undefined}
     >
-      <Icon className="size-4 shrink-0" aria-hidden />
-      {label}
+      <div className="flex items-center gap-3">
+        <Icon className="size-4 shrink-0" aria-hidden />
+        {label}
+      </div>
+      {Boolean(badge && badge > 0) && (
+        <span
+          className={cn(
+            "flex size-5 items-center justify-center rounded-full text-[10px] font-bold",
+            active ? "bg-white text-forest-700" : "bg-[#16a34a] text-white"
+          )}
+        >
+          {badge}
+        </span>
+      )}
     </Link>
   );
 }
@@ -75,6 +92,15 @@ function NavItem({
 export function OwnerSidebar() {
   const { user, logout } = useAuth();
   const router = useRouter();
+  const [unreadCount, setUnreadCount] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    api
+      .get<{ unreadCount?: number }>("/chat/unread-count")
+      .then((d) => setUnreadCount(d.unreadCount ?? 0))
+      .catch(() => setUnreadCount(0));
+  }, [user]);
 
   const initials = (user?.name ?? "O")
     .split(" ")
@@ -110,6 +136,7 @@ export function OwnerSidebar() {
               label={label}
               icon={icon}
               exact={href === "/owner"}
+              badge={href === "/owner/chat" ? unreadCount : undefined}
             />
           ))}
         </nav>
