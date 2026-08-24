@@ -16,6 +16,15 @@ import { requireAuth } from "../middleware/auth";
 const router = Router();
 router.use(requireAuth);
 
+function withLocation(body: Record<string, unknown>): Record<string, unknown> {
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { ...body, location: { type: "Point", coordinates: [lng, lat] } };
+  }
+  return body;
+}
+
 // ─── STATS ────────────────────────────────────────────────────────────────
 router.get("/stats", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -65,7 +74,7 @@ router.patch("/library", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
     await connectDB();
-    const library = await LibraryModel.findOneAndUpdate({ ownerId: user.id }, { $set: req.body }, { new: true, runValidators: true });
+    const library = await LibraryModel.findOneAndUpdate({ ownerId: user.id }, { $set: withLocation(req.body) }, { new: true, runValidators: true });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     res.json({ library });
   } catch (err) {
@@ -80,7 +89,7 @@ router.post("/library", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const existing = await LibraryModel.findOne({ ownerId: user.id });
     if (existing) { res.status(409).json({ error: "You already have a library. Edit it instead." }); return; }
-    const library = await LibraryModel.create({ ...req.body, ownerId: user.id });
+    const library = await LibraryModel.create({ ...withLocation(req.body), ownerId: user.id });
     res.status(201).json({ library });
   } catch (err) {
     console.error("[owner/library POST]", err);

@@ -10,6 +10,15 @@ import { libraryDetails, libraryReviews, librarySlots } from "../lib/mock-data";
 
 const router = Router();
 
+function withLocation(body: Record<string, unknown>): Record<string, unknown> {
+  const lat = Number(body.lat);
+  const lng = Number(body.lng);
+  if (Number.isFinite(lat) && Number.isFinite(lng)) {
+    return { ...body, location: { type: "Point", coordinates: [lng, lat] } };
+  }
+  return body;
+}
+
 function isDatabaseFallbackError(err: unknown): boolean {
   if (!err) return true;
   if (!process.env.MONGODB_URI || process.env.MONGODB_URI.includes("xxxxx")) {
@@ -112,6 +121,46 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ── GET /api/libraries/map ───────────────────────────────────────────────
+router.get("/map", async (req: Request, res: Response): Promise<void> => {
+  const { examType, exam_type, available_only, lat, lng, radius } =
+    req.query as Record<string, string | undefined>;
+
+  try {
+    await connectDB();
+    const filter: Record<string, unknown> = { isActive: true };
+    const requestedExamType = examType ?? exam_type;
+    if (requestedExamType) filter.studentTypes = requestedExamType;
+    if (available_only === "true") filter.availableSeats = { $gt: 0 };
+
+    const latitude = Number(lat);
+    const longitude = Number(lng);
+    const distance = Number(radius);
+    if (
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude) &&
+      Number.isFinite(distance) &&
+      distance > 0
+    ) {
+      filter.location = {
+        $near: {
+          $geometry: { type: "Point", coordinates: [longitude, latitude] },
+          $maxDistance: distance * 1000,
+        },
+      };
+    }
+
+    const libraries = await LibraryModel.find(
+      filter,
+      "name city lat lng availableSeats ratingAvg monthlyFee photos"
+    ).lean();
+    res.json({ libraries });
+  } catch (err) {
+    console.error("[libraries/map]", err);
+    res.status(500).json({ error: "Failed to fetch map libraries." });
+  }
+});
+
 // ── POST /api/libraries ───────────────────────────────────────────────────
 router.post("/", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -121,7 +170,7 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: "ownerId, name, address, and city are required." });
       return;
     }
-    const library = await LibraryModel.create(body);
+    const library = await LibraryModel.create(withLocation(body));
     res.status(201).json({ library });
   } catch (err) {
     console.error("[libraries POST]", err);
@@ -152,7 +201,7 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
 router.put("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
-    const library = await LibraryModel.findByIdAndUpdate(req.params.id, req.body, { new: true, runValidators: true });
+    const library = await LibraryModel.findByIdAndUpdate(req.params.id, withLocation(req.body), { new: true, runValidators: true });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     res.json({ library });
   } catch (err) {

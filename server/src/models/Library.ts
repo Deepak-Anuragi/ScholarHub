@@ -17,6 +17,10 @@ export interface ILibrary extends Document {
   pincode: string;
   lat?: number;
   lng?: number;
+  location?: {
+    type: "Point";
+    coordinates: [number, number];
+  };
   totalSeats: number;
   availableSeats: number;
   monthlyFee: number;
@@ -57,6 +61,17 @@ const LibrarySchema = new Schema<ILibrary>(
     pincode:        { type: String, required: true },
     lat:            { type: Number },
     lng:            { type: Number },
+    location: {
+      type: {
+        type: String,
+        enum: ["Point"],
+        default: "Point",
+      },
+      coordinates: {
+        type: [Number],
+        default: [0, 0],
+      },
+    },
     totalSeats:     { type: Number, required: true, default: 0 },
     availableSeats: { type: Number, required: true, default: 0 },
     monthlyFee:     { type: Number, required: true },
@@ -80,11 +95,18 @@ const LibrarySchema = new Schema<ILibrary>(
 LibrarySchema.index({ city: 1, state: 1 });
 LibrarySchema.index({ isActive: 1, isVerified: 1 });
 LibrarySchema.index({ lat: 1, lng: 1 });
+LibrarySchema.index({ location: "2dsphere" });
 LibrarySchema.index({ monthlyFee: 1 });
 LibrarySchema.index({ ratingAvg: -1 });
 LibrarySchema.index({ availableSeats: -1 });
 // Full-text search index for name, description, city, address
 LibrarySchema.index({ name: "text", description: "text", city: "text", address: "text" });
+
+LibrarySchema.pre("validate", function syncLocation() {
+  if (typeof this.lat === "number" && typeof this.lng === "number") {
+    this.location = { type: "Point", coordinates: [this.lng, this.lat] };
+  }
+});
 
 export default mongoose.models.Library ||
   mongoose.model<ILibrary>("Library", LibrarySchema);
