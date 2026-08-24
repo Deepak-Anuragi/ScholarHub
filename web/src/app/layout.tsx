@@ -24,10 +24,20 @@ const fraunces = Fraunces({
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"
+    process.env.NEXT_PUBLIC_APP_URL ?? "https://scholarshub.in"
   ),
-  title: "Scholar's Hub",
-  description: "Find your study spot, in seconds.",
+  title: { default: "Scholar's Hub", template: "%s | Scholar's Hub" },
+  description: "Find and book the best study library in your city.",
+  keywords: ["study library", "library booking", "UPSC preparation"],
+  openGraph: {
+    title: "Scholar's Hub",
+    description: "Find your study spot, in seconds.",
+    url: "https://scholarshub.in",
+    siteName: "Scholar's Hub",
+    images: [{ url: "/og-image.png", width: 1200, height: 630 }],
+    type: "website",
+  },
+  twitter: { card: "summary_large_image" },
   manifest: "/manifest.json",
   icons: { apple: "/icons/icon-192.png" },
 };

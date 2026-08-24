@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Star } from "lucide-react";
 
 import TiltedCard from "@/components/TiltedCard/TiltedCard";
@@ -61,11 +62,13 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
         )}
       >
         {coverUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={coverUrl}
             alt={`${library.name} cover`}
+            width={640}
+            height={360}
             className="aspect-video w-full object-cover transition-transform duration-500 group-hover:scale-105"
+            loading="lazy"
           />
         ) : (
           <div

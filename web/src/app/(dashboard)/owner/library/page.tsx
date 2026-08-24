@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import { useDropzone } from "react-dropzone";
 import { ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
 
@@ -374,11 +375,13 @@ export default function OwnerLibraryPage() {
                     key={photo.url}
                     className="group relative overflow-hidden rounded-2xl border border-line"
                   >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
+                    <Image
                       src={photo.url}
                       alt="Library photo"
+                      width={320}
+                      height={320}
                       className="aspect-square w-full object-cover"
+                      loading="lazy"
                     />
                     {photo.isCover && (
                       <span className="absolute left-2 top-2 rounded-full bg-forest-700 px-2 py-0.5 text-[10px] font-bold text-white">

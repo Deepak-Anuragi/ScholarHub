@@ -4,6 +4,23 @@ import { notFound } from "next/navigation";
 import { LibraryDetailClient } from "@/components/library/LibraryDetailClient";
 import { getLibraryPageData } from "@/lib/library-data";
 
+export async function generateMetadata({
+  params,
+}: {
+  params: { id: string };
+}) {
+  const data = await getLibraryPageData(params.id);
+  if (!data) return { title: "Library not found" };
+
+  const { library } = data;
+  const cover = library.photos.find((photo) => photo.isCover)?.url;
+  return {
+    title: library.name,
+    description: `Book a seat at ${library.name} in ${library.city}.`,
+    openGraph: cover ? { images: [cover] } : undefined,
+  };
+}
+
 export default async function LibraryDetailPage({
   params,
 }: {

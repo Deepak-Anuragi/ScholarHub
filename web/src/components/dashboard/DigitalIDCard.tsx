@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef } from "react";
+import Image from "next/image";
 import { QRCodeSVG } from "qrcode.react";
 import { Download, BookOpen } from "lucide-react";
 
@@ -91,7 +92,7 @@ export function DigitalIDCard({
             </div>
             <div>
               <p className="text-[10px] font-bold uppercase tracking-widest text-white/70">
-                Scholar's Hub
+                Scholar&apos;s Hub
               </p>
               <p className="text-xs font-bold text-white">Student ID</p>
             </div>
@@ -109,11 +110,13 @@ export function DigitalIDCard({
           {/* Avatar */}
           <div className="shrink-0">
             {avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <Image
                 src={avatarUrl}
                 alt={studentName}
+                width={64}
+                height={64}
                 className="size-16 rounded-full border-2 border-[#16a34a] object-cover"
+                loading="lazy"
               />
             ) : (
               <div className="flex size-16 items-center justify-center rounded-full border-2 border-[#16a34a] bg-[#16a34a]/10 text-xl font-bold text-[#16a34a]">

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { BookOpen, Check, GraduationCap, Loader2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
@@ -53,11 +54,13 @@ function CourseCard({
       {/* Thumbnail */}
       <div className="aspect-video w-full bg-gradient-to-br from-sage-100 via-sage-200 to-sand-100">
         {course.thumbnailUrl && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <Image
             src={course.thumbnailUrl}
             alt={course.title}
+            width={640}
+            height={360}
             className="h-full w-full object-cover"
+            loading="lazy"
           />
         )}
       </div>

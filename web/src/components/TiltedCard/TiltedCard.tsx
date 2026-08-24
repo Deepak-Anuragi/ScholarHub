@@ -3,12 +3,13 @@
 import type { SpringOptions } from "motion/react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { motion, useMotionValue, useSpring } from "motion/react";
+import Image from "next/image";
 
 import { cn } from "@/lib/utils";
 
 interface TiltedCardProps {
   children?: ReactNode;
-  imageSrc?: React.ComponentProps<"img">["src"];
+  imageSrc?: string;
   altText?: string;
   className?: string;
   containerClassName?: string;
@@ -102,10 +103,13 @@ export default function TiltedCard({
       >
         {children ??
           (imageSrc ? (
-            <img
+            <Image
               src={imageSrc}
               alt={altText}
+              width={640}
+              height={360}
               className="h-full w-full object-cover"
+              loading="lazy"
             />
           ) : null)}
       </motion.div>

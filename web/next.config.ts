@@ -4,6 +4,9 @@ const API_SERVER =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? "http://localhost:5000";
 
 const nextConfig: NextConfig = {
+  images: {
+    remotePatterns: [{ protocol: "https", hostname: "**" }],
+  },
   // Allow HMR (hot-reload) connections from any local network IP.
   // This is needed when accessing the dev server from another device
   // on the same network (e.g. phone, tablet, or LAN IP in browser).
