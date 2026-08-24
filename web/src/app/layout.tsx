@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Fraunces, Space_Grotesk, Inter } from "next/font/google";
 
 import { AppShell } from "@/components/layout/AppShell";
+import { InstallAppBanner } from "@/components/layout/InstallAppBanner";
+import { ServiceWorkerRegistration } from "@/components/layout/ServiceWorkerRegistration";
 import { AuthProvider } from "@/components/providers/auth-provider";
 import { LenisProvider } from "@/components/providers/lenis-provider";
 import { cn } from "@/lib/utils";
@@ -26,6 +28,12 @@ export const metadata: Metadata = {
   ),
   title: "Scholar's Hub",
   description: "Find your study spot, in seconds.",
+  manifest: "/manifest.json",
+  icons: { apple: "/icons/icon-192.png" },
+};
+
+export const viewport: Viewport = {
+  themeColor: "#16a34a",
 };
 
 export default function RootLayout({
@@ -44,6 +52,8 @@ export default function RootLayout({
             <AppShell>{children}</AppShell>
           </LenisProvider>
         </AuthProvider>
+        <ServiceWorkerRegistration />
+        <InstallAppBanner />
       </body>
     </html>
   );

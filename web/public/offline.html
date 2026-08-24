@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#16a34a" />
+    <title>Offline | Scholar's Hub</title>
+    <style>
+      :root { color-scheme: light; font-family: Georgia, serif; background: #f0e3d7; color: #253b1c; }
+      body { display: grid; min-height: 100vh; place-items: center; margin: 0; }
+      main { width: min(90vw, 28rem); padding: 3rem 2rem; text-align: center; background: #fff; border: 1px solid #d6e2d3; border-radius: 1.5rem; box-shadow: 0 20px 50px -35px rgba(27, 45, 22, .45); }
+      .logo { display: grid; width: 4rem; height: 4rem; margin: 0 auto 1.5rem; place-items: center; border-radius: 1rem; background: #16a34a; color: #fff; font-size: 2rem; }
+      h1 { margin: 0 0 .75rem; font-size: 1.6rem; }
+      p { margin: 0 0 1.5rem; color: #587052; font-family: Arial, sans-serif; }
+      button { border: 0; border-radius: 999px; padding: .75rem 1.5rem; background: #16a34a; color: #fff; font: 600 1rem Arial, sans-serif; cursor: pointer; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="logo" aria-hidden="true">📚</div>
+      <h1>You're offline</h1>
+      <p>Please check your connection.</p>
+      <button type="button" onclick="location.reload()">Retry</button>
+    </main>
+  </body>
+</html>
