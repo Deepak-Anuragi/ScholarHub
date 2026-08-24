@@ -9,6 +9,8 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@googlemaps/js-api-loader": "^2.1.1",
+    "@googlemaps/markerclusterer": "^2.6.2",
     "@gsap/react": "^2.1.2",
     "@hookform/resolvers": "^5.4.0",
     "@react-pdf/renderer": "^4.6.1",
