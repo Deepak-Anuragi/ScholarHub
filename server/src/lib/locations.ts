@@ -1,44 +1,47 @@
-import { libraries } from "./mock-data";
+import LibraryModel from "../models/Library";
 
-export type LocationTree = Record<string, Record<string, string[]>>;
+/**
+ * The places the filter dropdowns offer.
+ *
+ * These used to be derived from the seed data in lib/mock-data, so the
+ * dropdowns advertised states and cities that had nothing behind them in the
+ * database — pick one and the listing comes back empty with no explanation.
+ * They are read from the libraries themselves instead.
+ *
+ * The filter matches the public listing's (`{ isActive: true }`), so anything
+ * offered here has at least one library the listing will actually return.
+ */
+const LISTABLE = { isActive: true } as const;
 
-export function buildLocationTree(): LocationTree {
-  const tree: LocationTree = {};
-
-  for (const library of libraries) {
-    if (!tree[library.state]) {
-      tree[library.state] = {};
-    }
-    if (!tree[library.state][library.district]) {
-      tree[library.state][library.district] = [];
-    }
-    const cities = tree[library.state][library.district];
-    if (!cities.includes(library.city)) {
-      cities.push(library.city);
-    }
-  }
-
-  for (const state of Object.keys(tree)) {
-    for (const district of Object.keys(tree[state])) {
-      tree[state][district].sort();
-    }
-  }
-
-  return tree;
+/** Case-insensitive exact match, the way the listing compares these fields. */
+function exact(value: string): RegExp {
+  return new RegExp(`^${value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i");
 }
 
-export const locationTree = buildLocationTree();
-
-export function getStates(): string[] {
-  return Object.keys(locationTree).sort();
+function sorted(values: unknown[]): string[] {
+  return (values as string[])
+    .filter((v): v is string => typeof v === "string" && v.trim() !== "")
+    .sort((a, b) => a.localeCompare(b));
 }
 
-export function getDistricts(state?: string): string[] {
-  if (!state || !locationTree[state]) return [];
-  return Object.keys(locationTree[state]).sort();
+export async function getStates(): Promise<string[]> {
+  return sorted(await LibraryModel.distinct("state", LISTABLE));
 }
 
-export function getCities(state?: string, district?: string): string[] {
-  if (!state || !district || !locationTree[state]?.[district]) return [];
-  return locationTree[state][district];
+export async function getDistricts(state?: string): Promise<string[]> {
+  if (!state) return [];
+  return sorted(
+    await LibraryModel.distinct("district", { ...LISTABLE, state: exact(state) })
+  );
+}
+
+export async function getCities(state?: string, district?: string): Promise<string[]> {
+  if (!state || !district) return [];
+  return sorted(
+    await LibraryModel.distinct("city", {
+      ...LISTABLE,
+      state: exact(state),
+      district: exact(district),
+    })
+  );
 }

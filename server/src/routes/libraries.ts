@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
+import { isDatabaseUnavailable } from "../lib/db-errors";
 import LibraryModel from "../models/Library";
 import ReviewModel from "../models/Review";
 import SlotModel from "../models/Slot";
@@ -15,35 +16,6 @@ function withLocation(body: Record<string, unknown>): Record<string, unknown> {
     return { ...body, location: { type: "Point", coordinates: [lng, lat] } };
   }
   return body;
-}
-
-/**
- * True when the request failed because the database was unreachable, as
- * opposed to a bug in the handler. Used only to pick 503 over 500 — it must
- * never be used to substitute mock data for real data.
- */
-function isDatabaseUnavailable(err: unknown): boolean {
-  if (!err) return false;
-  if (err instanceof mongoose.Error) return true;
-  if (err instanceof Error) {
-    const msg = err.message.toLowerCase();
-    const code = (err as { code?: string }).code;
-    return (
-      msg.includes("mongodb_uri") ||
-      msg.includes("enotfound") ||
-      msg.includes("econnrefused") ||
-      msg.includes("querysrv") ||
-      msg.includes("timed out") ||
-      msg.includes("serverselection") ||
-      msg.includes("topology") ||
-      code === "ENOTFOUND" ||
-      code === "ECONNREFUSED" ||
-      err.name === "MongoServerSelectionError" ||
-      err.name === "MongoNetworkError" ||
-      err.name === "MongoTimeoutError"
-    );
-  }
-  return false;
 }
 
 // ── GET /api/libraries ────────────────────────────────────────────────────
