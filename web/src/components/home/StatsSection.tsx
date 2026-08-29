@@ -1,6 +1,6 @@
 "use client";
 
-import AnimatedContent from "@/components/AnimatedContent/AnimatedContent";
+import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
 
 const stats = [

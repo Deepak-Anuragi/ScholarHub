@@ -22,7 +22,7 @@ import {
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
-import ShinyText from "@/components/ShinyText/ShinyText";
+import ShinyText from "@/components/ShinyText";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { cn } from "@/lib/utils";

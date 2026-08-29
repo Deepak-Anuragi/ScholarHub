@@ -10,8 +10,8 @@ import { ArrowRight, BookMarked, Building2, CheckCircle, CreditCard, TrendingUp,
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
-import GradientText from "@/components/GradientText/GradientText";
-import ShinyText from "@/components/ShinyText/ShinyText";
+import GradientText from "@/components/GradientText";
+import ShinyText from "@/components/ShinyText";
 import { cn } from "@/lib/utils";
 
 const MONTH = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

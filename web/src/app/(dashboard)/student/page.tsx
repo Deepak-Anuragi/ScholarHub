@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
-import BlurText from "@/components/BlurText/BlurText";
+import BlurText from "@/components/BlurText";
 import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
 import { CountUp } from "@/components/home/CountUp";
 import { useAuth } from "@/components/providers/auth-provider";

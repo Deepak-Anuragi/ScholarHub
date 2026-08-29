@@ -9,7 +9,7 @@ import { TrendingUp } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
-import ShinyText from "@/components/ShinyText/ShinyText";
+import ShinyText from "@/components/ShinyText";
 import { cn } from "@/lib/utils";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];

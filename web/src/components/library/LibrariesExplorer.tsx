@@ -4,7 +4,7 @@ import { LayoutGrid, LayoutList, SearchX } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { AnimatedGrid } from "@/components/AnimatedList/AnimatedList";
+import { AnimatedGrid } from "@/components/AnimatedList";
 import { LibraryCard } from "@/components/library/LibraryCard";
 import { LibraryResultsSkeleton } from "@/components/library/LibraryCardSkeleton";
 import { Button } from "@/components/ui/button";
