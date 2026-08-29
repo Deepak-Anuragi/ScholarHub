@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import { useSearchParams } from "next/navigation";
 import { Check, MapPin, Phone, Mail, MessageCircle, Star, Users, Sofa } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
@@ -246,7 +247,17 @@ export function LibraryDetailClient({
   initialReviews,
   initialReviewTotal,
 }: LibraryDetailClientProps) {
-  const [showModal, setShowModal] = useState(false);
+  // A "Renew" link from the student dashboard arrives as ?book=1 and names the
+  // plan and slot it is renewing, so the modal opens with them already chosen.
+  const searchParams = useSearchParams();
+  const renewPlan = searchParams.get("plan");
+  const initialPlan =
+    renewPlan === "MONTHLY" || renewPlan === "QUARTERLY" || renewPlan === "ANNUAL"
+      ? renewPlan
+      : undefined;
+  const initialSlotId = searchParams.get("slot") ?? undefined;
+
+  const [showModal, setShowModal] = useState(searchParams.get("book") === "1");
   const [reviews, setReviews] = useState<ReviewData[]>(initialReviews);
   const [reviewPage, setReviewPage] = useState(1);
   const [reviewTotal] = useState(initialReviewTotal);
@@ -772,6 +783,8 @@ export function LibraryDetailClient({
             annualFee,
           }}
           slots={initialSlots}
+          initialPlan={initialPlan}
+          initialSlotId={initialSlotId}
           onClose={() => setShowModal(false)}
         />
       )}

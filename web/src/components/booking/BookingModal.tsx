@@ -35,6 +35,9 @@ type BookingModalProps = {
   libraryName: string;
   fees: LibraryFees;
   slots: SlotOption[];
+  /** Preselected by a renewal link, so the plan carries over. */
+  initialPlan?: Plan;
+  initialSlotId?: string;
   onClose: () => void;
 };
 
@@ -500,12 +503,18 @@ export function BookingModal({
   libraryName,
   fees,
   slots,
+  initialPlan,
+  initialSlotId,
   onClose,
 }: BookingModalProps) {
   const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [plan, setPlan] = useState<Plan>("MONTHLY");
+  const [plan, setPlan] = useState<Plan>(initialPlan ?? "MONTHLY");
   const [selectedSlotId, setSelectedSlotId] = useState<string>(
-    slots.find((s) => s.availableSeats > 0)?.id ?? ""
+    // A renewal names the slot it is renewing; otherwise take the first with
+    // room. Either way the student can still change it on step 1.
+    (initialSlotId && slots.some((s) => s.id === initialSlotId) ? initialSlotId : "") ||
+      slots.find((s) => s.availableSeats > 0)?.id ||
+      ""
   );
   const [startDate, setStartDate] = useState(todayIso());
   const [isLoading, setIsLoading] = useState(false);

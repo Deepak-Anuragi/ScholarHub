@@ -30,7 +30,7 @@ type ActiveBooking = {
   _id: string;
   studentId: string;
   libraryId: { _id: string; name: string; address: string; city: string };
-  slotId?: { name: string; startTime: string; endTime: string };
+  slotId?: { _id?: string; name: string; startTime: string; endTime: string };
   plan: string;
   startDate: string;
   endDate: string;
@@ -49,7 +49,8 @@ type Notification = {
 };
 
 type Stats = {
-  totalBookings: number;
+  /** Bookings still running, not the lifetime count. */
+  activeBookings: number;
   totalSpent: number;
   reviewCount: number;
   courseCount: number;
@@ -82,6 +83,18 @@ function totalDays(start: string, end: string) {
 }
 
 // ─── Active Booking Card ──────────────────────────────────────────────────────
+
+/**
+ * Renewing used to drop the student on the public library page with nothing
+ * chosen. The plan and slot they are renewing ride along, and the detail page
+ * opens the booking modal with both already selected.
+ */
+function renewHref(booking: ActiveBooking): string {
+  const libraryId = booking.libraryId._id ?? "";
+  const params = new URLSearchParams({ book: "1", plan: booking.plan });
+  if (booking.slotId?._id) params.set("slot", booking.slotId._id);
+  return `/library/${libraryId}?${params.toString()}`;
+}
 
 function ActiveBookingCard({
   booking,
@@ -183,7 +196,7 @@ function ActiveBookingCard({
             </Button>
             {isExpiringSoon && (
               <Button asChild variant="outline" size="sm" className="flex-1">
-                <Link href={`/library/${booking.libraryId._id ?? ""}`}>Renew</Link>
+                <Link href={renewHref(booking)}>Renew</Link>
               </Button>
             )}
           </div>
@@ -323,7 +336,7 @@ export default function StudentOverviewPage() {
           {
             icon: BookMarked,
             label: "Active Bookings",
-            value: stats?.totalBookings ?? 0,
+            value: stats?.activeBookings ?? 0,
             href: "/student/bookings",
           },
           {
