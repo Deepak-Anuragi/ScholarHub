@@ -99,7 +99,7 @@ export function AdminSidebar() {
 
   return (
     <>
-      <aside className="hidden w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
+      <aside className="sticky top-[var(--header-height)] hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
         <div className="flex items-center gap-3 border-b border-line px-5 py-4">
           <div className="flex size-9 items-center justify-center rounded-xl bg-forest-900 text-white shadow-sm">
             <BookOpen className="size-5" aria-hidden />
