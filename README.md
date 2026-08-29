@@ -1,5 +1,7 @@
 # Scholar's Hub — Monorepo
 
+[![CI](https://github.com/Deepak-Anuragi/ScholarHub/actions/workflows/ci.yml/badge.svg)](https://github.com/Deepak-Anuragi/ScholarHub/actions/workflows/ci.yml)
+
 ```
 ScholarHub/
 ├── web/      → Next.js 16 frontend  (http://localhost:3000)
@@ -47,6 +49,23 @@ Then open **http://localhost:3000**.
 
 > The server refuses to start without `JWT_SECRET`. Generate one with:
 > `node -e "console.log(require('crypto').randomBytes(48).toString('hex'))"`
+
+---
+
+## Tests
+
+```bash
+cd server && npm test        # vitest, against an in-memory MongoDB
+cd server && npm run typecheck
+```
+
+The suite covers the things that were once broken: forged and wrongly signed
+session cookies, the admin and owner role guards, booking confirmation
+(unauthenticated, wrong signature, someone else's booking, and a replay taking
+a seat exactly once), the payout split adding up to what the student was
+charged, the library and slot field whitelists, and photo URLs that did not
+come from our own Cloudinary account. No database or network is needed —
+`mongodb-memory-server` downloads a mongod binary on first run and caches it.
 
 ---
 
