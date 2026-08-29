@@ -4,6 +4,7 @@ import connectDB from "../lib/mongodb";
 import { encodeSession, SESSION_COOKIE, type AuthUser, type UserRole } from "../lib/auth";
 import LibraryModel from "../models/Library";
 import SlotModel from "../models/Slot";
+import UserModel from "../models/User";
 
 export async function openDb(): Promise<void> {
   await connectDB();
@@ -41,6 +42,22 @@ export function sessionFor(role: UserRole, id?: string): TestSession {
 
 export function cookieFor(token: string): string {
   return `${SESSION_COOKIE}=${token}`;
+}
+
+/** The User row a session points at, for anything that populates studentId. */
+export async function createUser(
+  role: UserRole,
+  overrides: Record<string, unknown> = {}
+): Promise<TestSession & { doc: { _id: unknown } }> {
+  const doc = await UserModel.create({
+    name: `${role} tester`,
+    email: `${role}-${new mongoose.Types.ObjectId()}@test.local`,
+    phone: "9999999999",
+    passwordHash: "not-a-real-hash",
+    role: role === "owner" ? "LIBRARY_OWNER" : role.toUpperCase(),
+    ...overrides,
+  });
+  return { ...sessionFor(role, String(doc._id)), doc };
 }
 
 export async function createLibrary(

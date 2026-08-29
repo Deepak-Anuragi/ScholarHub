@@ -105,6 +105,8 @@ Roles are `student`, `owner` and `admin`. Admin signup additionally requires
 | `PLATFORM_RATE` | no | Commission charged on top of the library fee. Default `0.02` |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | for photo upload | All three, or the owner dashboard cannot add photos |
 | `SMTP_*` | no | Nodemailer. Unset disables email; seat alerts stay in-app |
+| `CRON_TIMEZONE` | no | Timezone for the nightly expiry job. Default `Asia/Kolkata` |
+| `DISABLE_CRON` | no | `true` skips scheduling the job; it is skipped on serverless hosts anyway |
 
 ### `web/.env.local`
 
@@ -117,6 +119,16 @@ Roles are `student`, `owner` and `admin`. Admin signup additionally requires
 
 > The web project does not connect to MongoDB. All database access goes through
 > the Express server.
+
+### Scheduled jobs
+
+A daily job (`server/src/lib/cron.ts`, 02:00 `CRON_TIMEZONE`) expires bookings
+whose end date has passed, returns their seat to the slot and the library, and
+alerts the front of that slot's waitlist. It also drops waitlist holds that
+lapsed without a booking, so the queue keeps moving. Only paid bookings are
+considered — `status` defaults to `ACTIVE` before payment, and an unpaid
+booking never took a seat. The job is skipped on serverless hosts, where there
+is no long-lived process to run it.
 
 ### Library photos
 

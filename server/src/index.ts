@@ -1,6 +1,7 @@
 import "dotenv/config";
 
 import { createApp, allowedOrigins, isAllowedOrigin } from "./app";
+import { startScheduledJobs } from "./lib/cron";
 import { setSocketIO } from "./lib/socket";
 
 import http from "http";
@@ -114,6 +115,8 @@ io.on("connection", (socket: AuthenticatedSocket) => {
 });
 
 // ── Start ──────────────────────────────────────────────────────────────────
+startScheduledJobs();
+
 server.listen(PORT, () => {
   console.log(`\n   Scholar's Hub API server with Socket.io`);
   console.log(`   Listening at  http://localhost:${PORT}`);

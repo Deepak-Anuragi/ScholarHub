@@ -3,15 +3,12 @@ import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
 import { isCloudinaryConfigured, isCloudinaryUrl, signUpload } from "../lib/cloudinary";
+import { notifyWaitlist } from "../lib/waitlist";
 import LibraryModel from "../models/Library";
 import BookingModel from "../models/Booking";
 import ReviewModel from "../models/Review";
 import SlotModel from "../models/Slot";
-import WaitlistModel from "../models/Waitlist";
-import NotificationModel from "../models/Notification";
 import PayoutLedgerModel from "../models/PayoutLedger";
-import { sendSeatAlertEmail } from "../lib/email";
-import { emitNotificationCount } from "../lib/notifications";
 import { requireAuth, requireOwner } from "../middleware/auth";
 
 const router = Router();
@@ -368,49 +365,16 @@ router.patch("/slots/:id", async (req: Request, res: Response): Promise<void> =>
       { new: true, runValidators: true }
     );
 
+    // Raising the seat count is what frees a seat by hand; the nightly expiry
+    // job frees them on its own. Both go through the same notifier.
     const freed = (updatedSlot?.availableSeats ?? 0) - prevSlot.availableSeats;
     if (freed > 0) {
-      const waiting = await WaitlistModel.find({ slotId: req.params.id })
-        .sort({ position: 1 })
-        .limit(freed)
-        .populate("studentId", "name email phone fcmToken");
-
-      for (const entry of waiting) {
-        const student = entry.studentId as {
-          _id: mongoose.Types.ObjectId;
-          name?: string;
-          email?: string;
-        };
-
-        await NotificationModel.create({
-          userId: student._id,
-          type: "SEAT_ALERT",
-          title: "Seat Available!",
-          message: `A seat opened at ${library.name}. You have 2 hrs to book.`,
-          link: `/library/${entry.libraryId}`,
-          isRead: false,
-        });
-
-        if (student.email) {
-          try {
-            await sendSeatAlertEmail(
-              student.email,
-              student.name ?? "Student",
-              library.name,
-              `/library/${entry.libraryId}`
-            );
-          } catch (emailErr) {
-            console.error("[owner/slots PATCH] seat alert email failed:", emailErr);
-          }
-        }
-
-        await WaitlistModel.findByIdAndUpdate(entry._id, {
-          notified: true,
-          heldUntil: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        });
-
-        await emitNotificationCount(String(student._id));
-      }
+      await notifyWaitlist({
+        libraryId: library._id as mongoose.Types.ObjectId,
+        libraryName: library.name,
+        slotId: req.params.id,
+        seats: freed,
+      });
     }
 
     res.json({ slot: updatedSlot });
