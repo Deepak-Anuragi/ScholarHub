@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import {
   BookOpen,
   Bell,
-  BookMarked,
   GraduationCap,
   LayoutDashboard,
   LogOut,
@@ -15,26 +14,31 @@ import {
   Building2,
 } from "lucide-react";
 
+import {
+  DashboardMobileNav,
+  type DashboardNavLink,
+} from "@/components/dashboard/DashboardMobileNav";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
 
-const NAV = [
-  { href: "/admin",                label: "Overview",       icon: LayoutDashboard },
+const NAV: DashboardNavLink[] = [
+  { href: "/admin",                label: "Overview",       icon: LayoutDashboard, shortLabel: "Home" },
   { href: "/admin/libraries",      label: "Libraries",      icon: Building2 },
   { href: "/admin/students",       label: "Students",       icon: Users },
   { href: "/admin/revenue",        label: "Revenue",        icon: TrendingUp },
   { href: "/admin/courses",        label: "Courses",        icon: GraduationCap },
-  { href: "/admin/notifications",  label: "Notifications",  icon: Bell },
-  { href: "/admin/chat",           label: "Chat Monitor",   icon: MessageCircle },
+  { href: "/admin/notifications",  label: "Notifications",  icon: Bell, shortLabel: "Alerts" },
+  { href: "/admin/chat",           label: "Chat Monitor",   icon: MessageCircle, shortLabel: "Chat" },
 ];
 
-const MOBILE_NAV = [
-  { href: "/admin",           label: "Home",      icon: LayoutDashboard },
-  { href: "/admin/libraries", label: "Libraries", icon: Building2 },
-  { href: "/admin/students",  label: "Students",  icon: Users },
-  { href: "/admin/revenue",   label: "Revenue",   icon: TrendingUp },
-  { href: "/admin/courses",   label: "Courses",   icon: GraduationCap },
+// Notifications and the chat monitor move under "More" rather than off the
+// phone entirely.
+const MOBILE_PRIMARY = [
+  "/admin",
+  "/admin/libraries",
+  "/admin/students",
+  "/admin/revenue",
 ];
 
 function NavItem({
@@ -65,24 +69,6 @@ function NavItem({
       aria-current={active ? "page" : undefined}
     >
       <Icon className="size-4 shrink-0" aria-hidden />
-      {label}
-    </Link>
-  );
-}
-
-function MobileNavItem({ href, label, icon: Icon }: { href: string; label: string; icon: React.ElementType }) {
-  const pathname = usePathname();
-  const active = href === "/admin" ? pathname === href : pathname === href || pathname.startsWith(href + "/");
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
-        active ? "text-forest-900" : "text-forest-900/40"
-      )}
-      aria-current={active ? "page" : undefined}
-    >
-      <Icon className={cn("size-5", active && "stroke-[2.5]")} aria-hidden />
       {label}
     </Link>
   );
@@ -142,11 +128,7 @@ export function AdminSidebar() {
         </div>
       </aside>
 
-      <nav className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-line bg-white/95 backdrop-blur-sm lg:hidden" aria-label="Admin mobile nav">
-        {MOBILE_NAV.map(({ href, label, icon: Icon }) => (
-          <MobileNavItem key={href} href={href} label={label} icon={Icon} />
-        ))}
-      </nav>
+      <DashboardMobileNav items={NAV} primary={MOBILE_PRIMARY} rootHref="/admin" />
     </>
   );
 }

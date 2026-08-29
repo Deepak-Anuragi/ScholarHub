@@ -10,12 +10,15 @@ import {
   LayoutDashboard,
   LogOut,
   MessageCircle,
-  Settings,
   Star,
   TrendingUp,
   Users,
 } from "lucide-react";
 
+import {
+  DashboardMobileNav,
+  type DashboardNavLink,
+} from "@/components/dashboard/DashboardMobileNav";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -23,9 +26,9 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useEffect, useState } from "react";
 
-const NAV = [
-  { href: "/owner",           label: "Overview",  icon: LayoutDashboard },
-  { href: "/owner/library",   label: "My Library", icon: Building2 },
+const NAV: DashboardNavLink[] = [
+  { href: "/owner",           label: "Overview",  icon: LayoutDashboard, shortLabel: "Home" },
+  { href: "/owner/library",   label: "My Library", icon: Building2, shortLabel: "Library" },
   { href: "/owner/slots",     label: "Slots",      icon: CalendarDays },
   { href: "/owner/bookings",  label: "Bookings",   icon: BookMarked },
   { href: "/owner/students",  label: "Students",   icon: Users },
@@ -34,12 +37,13 @@ const NAV = [
   { href: "/owner/chat",      label: "Chat",       icon: MessageCircle },
 ];
 
-const MOBILE_NAV = [
-  { href: "/owner",          label: "Home",     icon: LayoutDashboard },
-  { href: "/owner/slots",    label: "Slots",    icon: CalendarDays },
-  { href: "/owner/bookings", label: "Bookings", icon: BookMarked },
-  { href: "/owner/revenue",  label: "Revenue",  icon: TrendingUp },
-  { href: "/owner/reviews",  label: "Reviews",  icon: Star },
+// Editing the library is an owner's primary task, so it keeps a tab. The
+// rest of NAV is one tap away under "More".
+const MOBILE_PRIMARY = [
+  "/owner",
+  "/owner/library",
+  "/owner/slots",
+  "/owner/bookings",
 ];
 
 function NavItem({
@@ -174,44 +178,12 @@ export function OwnerSidebar() {
       </aside>
 
       {/* ── Mobile bottom nav ────────────────────────────────────────────── */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-line bg-white/95 backdrop-blur-sm lg:hidden"
-        aria-label="Owner mobile navigation"
-      >
-        {MOBILE_NAV.map(({ href, label, icon: Icon }) => (
-          <MobileNavItem key={href} href={href} label={label} icon={Icon} />
-        ))}
-      </nav>
+      <DashboardMobileNav
+        items={NAV}
+        primary={MOBILE_PRIMARY}
+        rootHref="/owner"
+        badges={{ "/owner/chat": unreadCount }}
+      />
     </>
-  );
-}
-
-function MobileNavItem({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-}) {
-  const pathname = usePathname();
-  const active =
-    href === "/owner"
-      ? pathname === href
-      : pathname === href || pathname.startsWith(href + "/");
-
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
-        active ? "text-forest-700" : "text-forest-900/50"
-      )}
-      aria-current={active ? "page" : undefined}
-    >
-      <Icon className={cn("size-5", active && "stroke-[2.5]")} aria-hidden />
-      {label}
-    </Link>
   );
 }

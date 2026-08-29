@@ -15,6 +15,10 @@ import {
   Users,
 } from "lucide-react";
 
+import {
+  DashboardMobileNav,
+  type DashboardNavLink,
+} from "@/components/dashboard/DashboardMobileNav";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { cn } from "@/lib/utils";
@@ -22,9 +26,9 @@ import { cn } from "@/lib/utils";
 import { api } from "@/lib/api";
 import { useEffect, useState } from "react";
 
-const NAV = [
-  { href: "/student",          label: "Overview",   icon: LayoutDashboard },
-  { href: "/student/bookings", label: "My Bookings", icon: BookMarked },
+const NAV: DashboardNavLink[] = [
+  { href: "/student",          label: "Overview",   icon: LayoutDashboard, shortLabel: "Home" },
+  { href: "/student/bookings", label: "My Bookings", icon: BookMarked, shortLabel: "Bookings" },
   { href: "/student/payments", label: "Payments",   icon: CreditCard },
   { href: "/student/courses",  label: "Courses",    icon: GraduationCap },
   { href: "/student/reviews",  label: "Reviews",    icon: Star },
@@ -33,13 +37,13 @@ const NAV = [
   { href: "/student/profile",  label: "Profile",    icon: User },
 ];
 
-// Bottom-nav items for mobile (5 most-used)
-const MOBILE_NAV = [
-  { href: "/student",          label: "Home",     icon: LayoutDashboard },
-  { href: "/student/bookings", label: "Bookings", icon: BookMarked },
-  { href: "/student/payments", label: "Payments", icon: CreditCard },
-  { href: "/student/courses",  label: "Courses",  icon: GraduationCap },
-  { href: "/student/profile",  label: "Profile",  icon: User },
+// The four that get their own tab on a phone. Everything else in NAV is
+// reachable from the "More" sheet, so no page is stranded.
+const MOBILE_PRIMARY = [
+  "/student",
+  "/student/bookings",
+  "/student/courses",
+  "/student/profile",
 ];
 
 function NavItem({
@@ -180,46 +184,12 @@ export function StudentSidebar() {
       </aside>
 
       {/* ── Mobile bottom nav ────────────────────────────────────────────── */}
-      <nav
-        className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-line bg-white/95 backdrop-blur-sm lg:hidden"
-        aria-label="Mobile navigation"
-      >
-        {MOBILE_NAV.map(({ href, label, icon: Icon }) => {
-          return (
-            <MobileNavItem key={href} href={href} label={label} icon={Icon} />
-          );
-        })}
-      </nav>
+      <DashboardMobileNav
+        items={NAV}
+        primary={MOBILE_PRIMARY}
+        rootHref="/student"
+        badges={{ "/student/chat": unreadCount }}
+      />
     </>
-  );
-}
-
-function MobileNavItem({
-  href,
-  label,
-  icon: Icon,
-}: {
-  href: string;
-  label: string;
-  icon: React.ElementType;
-}) {
-  const pathname = usePathname();
-  const active =
-    href === "/student"
-      ? pathname === href
-      : pathname === href || pathname.startsWith(href + "/");
-
-  return (
-    <Link
-      href={href}
-      className={cn(
-        "flex flex-1 flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors",
-        active ? "text-[#16a34a]" : "text-forest-900/50"
-      )}
-      aria-current={active ? "page" : undefined}
-    >
-      <Icon className={cn("size-5", active && "stroke-[2.5]")} aria-hidden />
-      {label}
-    </Link>
   );
 }
