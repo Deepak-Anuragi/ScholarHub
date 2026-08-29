@@ -5,7 +5,13 @@ import { z } from "zod";
 import connectDB from "../lib/mongodb";
 import UserModel from "../models/User";
 import LibraryModel from "../models/Library";
-import { SESSION_COOKIE, encodeSession, decodeSession, type AuthUser } from "../lib/auth";
+import {
+  SESSION_COOKIE,
+  encodeSession,
+  decodeSession,
+  sessionMaxAgeMs,
+  type AuthUser,
+} from "../lib/auth";
 
 const router = Router();
 
@@ -56,12 +62,14 @@ function toSessionRole(dbRole: string): AuthUser["role"] {
 }
 
 function setSessionCookie(res: Response, user: AuthUser) {
-  res.cookie(SESSION_COOKIE, encodeSession(user), {
+  const token = encodeSession(user);
+  res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: 60 * 60 * 24 * 30 * 1000, // 30 days in ms
+    // Tied to the token's own expiry so the two can never drift apart.
+    maxAge: sessionMaxAgeMs(token),
   });
 }
 

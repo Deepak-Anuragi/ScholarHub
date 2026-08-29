@@ -1,14 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 
 /**
- * Middleware — SSR route protection for dashboard pages.
+ * Middleware — cheap first-pass route protection for dashboard pages.
  *
- * Checks for the scholars_session cookie (set by Express as httpOnly).
- * If a protected route is accessed without a session, the user is
- * redirected to /auth/login.
+ * This only checks that the scholars_session cookie is PRESENT. It does not
+ * verify the signature: middleware runs on the Edge runtime, where the Node
+ * crypto that jsonwebtoken needs is unavailable. A forged cookie gets past
+ * this layer by design — it is a redirect optimisation, not a security
+ * boundary.
  *
- * Fine-grained role checks are done in each dashboard's layout.tsx
- * via getSessionUser() from lib/auth-session.ts.
+ * The real check is jwt.verify in getSessionUser() (lib/auth-session.ts),
+ * called by every dashboard layout.tsx, and again by the Express server on
+ * each API request. Never treat a route as protected on the strength of this
+ * file alone.
  */
 
 const SESSION_COOKIE = "scholars_session";
