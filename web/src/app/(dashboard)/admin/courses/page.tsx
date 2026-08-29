@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Loader2, Plus, Trash2, X } from "lucide-react";
+import { BookOpen, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
@@ -22,18 +22,27 @@ type Course = {
 
 const EXAM_OPTS = ["UPSC","SSC","JEE","NEET","Board","Professional"];
 
-function AddCourseModal({
+type CourseInput = Omit<Course, "_id" | "enrolledCount" | "createdBy" | "createdAt">;
+
+function CourseModal({
+  course,
   onSave,
   onClose,
   saving,
 }: {
-  onSave: (data: Omit<Course, "_id" | "enrolledCount" | "createdBy" | "createdAt">) => void;
+  /** Absent when creating; the course being edited otherwise. */
+  course?: Course;
+  onSave: (data: CourseInput) => void;
   onClose: () => void;
   saving: boolean;
 }) {
+  const editing = course !== undefined;
   const [form, setForm] = useState({
-    title: "", description: "", subject: "",
-    examTypes: [] as string[], fileUrl: "",
+    title: course?.title ?? "",
+    description: course?.description ?? "",
+    subject: course?.subject ?? "",
+    examTypes: (course?.examTypes ?? []) as string[],
+    fileUrl: course?.fileUrl ?? "",
   });
 
   const toggleExam = (t: string) =>
@@ -48,7 +57,7 @@ function AddCourseModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/40 backdrop-blur-sm p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-card bg-white p-6 shadow-lift" onClick={(e) => e.stopPropagation()}>
         <div className="mb-4 flex items-center justify-between">
-          <p className="font-semibold text-forest-900">Add Course</p>
+          <p className="font-semibold text-forest-900">{editing ? "Edit Course" : "Add Course"}</p>
           <button type="button" onClick={onClose}><X className="size-4 text-forest-900/50" /></button>
         </div>
         <div className="space-y-3">
@@ -93,7 +102,7 @@ function AddCourseModal({
           disabled={saving || !form.title || !form.subject || !form.fileUrl}
           className="mt-5 w-full bg-forest-900 text-white hover:bg-forest-700"
         >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : "Create Course"}
+          {saving ? <Loader2 className="size-4 animate-spin" /> : editing ? "Save Changes" : "Create Course"}
         </Button>
       </div>
     </div>
@@ -103,7 +112,8 @@ function AddCourseModal({
 export default function AdminCoursesPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
-  const [showModal, setShowModal] = useState(false);
+  /** null = closed, "new" = create, otherwise the id being edited. */
+  const [modal, setModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -124,27 +134,43 @@ export default function AdminCoursesPage() {
     load();
   }, [load]);
 
-  const handleCreate = async (data: Omit<Course, "_id" | "enrolledCount" | "createdBy" | "createdAt">) => {
+  const handleSave = async (data: CourseInput) => {
+    const editingId = modal !== "new" ? modal : null;
     setSaving(true);
     setError(null);
     try {
-      const d = await api.post<{ course?: Course }>("/admin/courses", data);
-      if (d.course) setCourses((p) => [d.course!, ...p]);
-      setShowModal(false);
+      if (editingId) {
+        const d = await api.patch<{ course?: Course }>(`/admin/courses/${editingId}`, data);
+        if (d.course) setCourses((p) => p.map((c) => (c._id === editingId ? d.course! : c)));
+      } else {
+        const d = await api.post<{ course?: Course }>("/admin/courses", data);
+        if (d.course) setCourses((p) => [d.course!, ...p]);
+      }
+      setModal(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not create the course.");
+      setError(
+        err instanceof Error
+          ? err.message
+          : `Could not ${editingId ? "update" : "create"} the course.`
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  const handleDelete = async (id: string) => {
-    if (!confirm("Delete this course?")) return;
-    setDeleting(id);
+  const handleDelete = async (course: Course) => {
+    // Enrolments are deleted with the course, so say so before doing it.
+    const enrolled = course.enrolledCount;
+    const warning = enrolled > 0
+      ? `${enrolled} student${enrolled === 1 ? " is" : "s are"} enrolled in "${course.title}". Deleting it removes their enrolment too. Continue?`
+      : "Delete this course?";
+    if (!confirm(warning)) return;
+
+    setDeleting(course._id);
     setError(null);
     try {
-      await api.delete("/admin/courses", { body: JSON.stringify({ id }) });
-      setCourses((p) => p.filter((c) => c._id !== id));
+      await api.delete(`/admin/courses/${course._id}${enrolled > 0 ? "?cascade=true" : ""}`);
+      setCourses((p) => p.filter((c) => c._id !== course._id));
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not delete the course.");
     } finally {
@@ -161,7 +187,7 @@ export default function AdminCoursesPage() {
               <h1 className="font-display text-2xl text-forest-900 sm:text-3xl">Study Courses</h1>
               <p className="mt-1 text-sm text-forest-900/60">{courses.length} courses on the platform</p>
             </div>
-            <Button onClick={() => setShowModal(true)} className="bg-forest-900 text-white hover:bg-forest-700" size="sm">
+            <Button onClick={() => setModal("new")} className="bg-forest-900 text-white hover:bg-forest-700" size="sm">
               <Plus className="size-4" /> Add Course
             </Button>
           </div>
@@ -208,10 +234,17 @@ export default function AdminCoursesPage() {
                           {new Date(c.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                         </td>
                         <td className="px-4 py-3">
-                          <button type="button" onClick={() => void handleDelete(c._id)} disabled={deleting === c._id}
-                            className="flex size-7 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition">
-                            {deleting === c._id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                          </button>
+                          <div className="flex items-center gap-1">
+                            <button type="button" onClick={() => setModal(c._id)} aria-label={`Edit ${c.title}`}
+                              className="flex size-7 items-center justify-center rounded-lg text-forest-900/60 hover:bg-sage-100 hover:text-forest-900 transition">
+                              <Pencil className="size-3.5" />
+                            </button>
+                            <button type="button" onClick={() => void handleDelete(c)} disabled={deleting === c._id}
+                              aria-label={`Delete ${c.title}`}
+                              className="flex size-7 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition">
+                              {deleting === c._id ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -223,10 +256,11 @@ export default function AdminCoursesPage() {
         </AnimatedContent>
       </div>
 
-      {showModal && (
-        <AddCourseModal
-          onSave={(d) => void handleCreate(d)}
-          onClose={() => setShowModal(false)}
+      {modal && (
+        <CourseModal
+          course={courses.find((c) => c._id === modal)}
+          onSave={(d) => void handleSave(d)}
+          onClose={() => setModal(null)}
           saving={saving}
         />
       )}

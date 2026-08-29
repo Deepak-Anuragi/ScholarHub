@@ -230,11 +230,61 @@ router.patch("/payouts/:id", async (req: Request, res: Response): Promise<void> 
 });
 
 // ─── COURSES ──────────────────────────────────────────────────────────────
+
+/** Course fields an admin may set. createdBy and enrolledCount are derived. */
+const EDITABLE_COURSE_FIELDS = [
+  "title",
+  "description",
+  "subject",
+  "examTypes",
+  "fileUrl",
+  "thumbnailUrl",
+  "fileSize",
+] as const;
+
+/** Whitelisted rather than spread, per the rule for every write route here. */
+function pickCourseFields(body: Record<string, unknown>): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of EDITABLE_COURSE_FIELDS) {
+    if (body[key] !== undefined) picked[key] = body[key];
+  }
+  return picked;
+}
+
+/** The three fields the schema requires may be changed but never emptied. */
+function invalidCourseField(fields: Record<string, unknown>): string | null {
+  for (const key of ["title", "subject", "fileUrl"] as const) {
+    if (key in fields && (typeof fields[key] !== "string" || !(fields[key] as string).trim())) {
+      return `${key} must be a non-empty string.`;
+    }
+  }
+  if ("examTypes" in fields && !Array.isArray(fields.examTypes)) {
+    return "examTypes must be an array.";
+  }
+  return null;
+}
+
+type CourseDoc = Record<string, unknown> & { _id: unknown; createdBy?: unknown };
+
+function serializeCourse(course: CourseDoc): Record<string, unknown> {
+  const { createdBy } = course;
+  return {
+    ...course,
+    _id: String(course._id),
+    createdBy:
+      createdBy && typeof createdBy === "object"
+        ? { ...(createdBy as Record<string, unknown>), _id: String((createdBy as { _id: unknown })._id) }
+        : createdBy
+          ? String(createdBy)
+          : null,
+  };
+}
+
 router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
     const courses = await CourseModel.find().populate("createdBy", "name").sort({ createdAt: -1 }).lean();
-    res.json({ courses: courses.map((c: any) => ({ ...c, _id: String(c._id), createdBy: c.createdBy && typeof c.createdBy === "object" ? { ...(c.createdBy as Record<string, unknown>), _id: String((c.createdBy as { _id: unknown })._id) } : c.createdBy ? String(c.createdBy) : null })) });
+    res.json({ courses: (courses as CourseDoc[]).map(serializeCourse) });
   } catch (err) {
     console.error("[admin/courses GET]", err);
     res.status(500).json({ error: "Failed." });
@@ -244,36 +294,74 @@ router.get("/courses", async (_req: Request, res: Response): Promise<void> => {
 router.post("/courses", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
-    await connectDB();
-    // Whitelisted rather than spread: enrolledCount and createdBy are derived,
-    // never client-supplied.
-    const { title, description, subject, examTypes, fileUrl, thumbnailUrl, fileSize } =
-      req.body as Record<string, unknown>;
-    if (!title || !subject || !fileUrl) {
+    const fields = pickCourseFields(req.body as Record<string, unknown>);
+    if (!fields.title || !fields.subject || !fields.fileUrl) {
       res.status(400).json({ error: "title, subject and fileUrl are required." });
       return;
     }
-    const course = await CourseModel.create({
-      title, description, subject, examTypes, fileUrl, thumbnailUrl, fileSize,
-      createdBy: user.id,
-    });
+    const invalid = invalidCourseField(fields);
+    if (invalid) { res.status(400).json({ error: invalid }); return; }
+
+    await connectDB();
+    const course = await CourseModel.create({ ...fields, createdBy: user.id });
     await course.populate("createdBy", "name");
-    res.status(201).json({ course: { ...course.toObject(), _id: String(course._id), createdBy: course.createdBy && typeof course.createdBy === "object" ? { ...(course.createdBy as unknown as Record<string, unknown>), _id: String((course.createdBy as unknown as { _id: unknown })._id) } : String(course.createdBy) } });
+    res.status(201).json({ course: serializeCourse(course.toObject() as CourseDoc) });
   } catch (err) {
     console.error("[admin/courses POST]", err);
     res.status(500).json({ error: "Failed." });
   }
 });
 
-router.delete("/courses", async (req: Request, res: Response): Promise<void> => {
+router.patch("/courses/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const fields = pickCourseFields(req.body as Record<string, unknown>);
+    if (Object.keys(fields).length === 0) {
+      res.status(400).json({ error: "No editable fields supplied." });
+      return;
+    }
+    const invalid = invalidCourseField(fields);
+    if (invalid) { res.status(400).json({ error: invalid }); return; }
+
+    await connectDB();
+    const course = await CourseModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: fields },
+      { new: true, runValidators: true }
+    ).populate("createdBy", "name");
+    if (!course) { res.status(404).json({ error: "Course not found." }); return; }
+
+    res.json({ course: serializeCourse(course.toObject() as CourseDoc) });
+  } catch (err) {
+    console.error("[admin/courses PATCH]", err);
+    res.status(500).json({ error: "Failed to update the course." });
+  }
+});
+
+router.delete("/courses/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
-    const { id } = req.body as { id?: string };
-    await CourseModel.findByIdAndDelete(id);
-    res.json({ success: true });
+    const { id } = req.params;
+
+    // Deleting a course used to leave every enrolment row pointing at nothing.
+    // An enrolled course is only removed when the caller says so explicitly,
+    // and its enrolments go with it.
+    const enrolled = await StudentCourseModel.countDocuments({ courseId: id });
+    if (enrolled > 0 && req.query.cascade !== "true") {
+      res.status(409).json({
+        error: `${enrolled} student${enrolled === 1 ? " is" : "s are"} enrolled in this course.`,
+        enrolledCount: enrolled,
+      });
+      return;
+    }
+
+    const course = await CourseModel.findByIdAndDelete(id);
+    if (!course) { res.status(404).json({ error: "Course not found." }); return; }
+    if (enrolled > 0) await StudentCourseModel.deleteMany({ courseId: id });
+
+    res.json({ success: true, removedEnrolments: enrolled });
   } catch (err) {
     console.error("[admin/courses DELETE]", err);
-    res.status(500).json({ error: "Failed." });
+    res.status(500).json({ error: "Failed to delete the course." });
   }
 });
 

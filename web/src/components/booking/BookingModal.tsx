@@ -170,7 +170,7 @@ function Step1({
   onNext: () => void;
 }) {
   const fee = planFee(fees, plan);
-  const { platformFee, total } = priceBooking(fee);
+  const { total } = priceBooking(fee);
   const startDt = new Date(startDate + "T00:00:00");
   const endDt = calcEndDate(startDt, plan);
 
