@@ -9,7 +9,7 @@ export default async function AdminLayout({ children }: { children: React.ReactN
   if (user.role !== "admin") redirect("/");
 
   return (
-    <div className="flex min-h-screen bg-sand-100">
+    <div className="flex min-h-[calc(100vh-var(--header-height))] bg-sand-100">
       <AdminSidebar />
       <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">{children}</main>
     </div>
