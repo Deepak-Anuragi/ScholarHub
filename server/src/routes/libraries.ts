@@ -5,8 +5,6 @@ import connectDB from "../lib/mongodb";
 import LibraryModel from "../models/Library";
 import ReviewModel from "../models/Review";
 import SlotModel from "../models/Slot";
-import { queryLibraries, type LibrarySort } from "../lib/libraries-query";
-import { libraryDetails, libraryReviews, librarySlots } from "../lib/mock-data";
 
 const router = Router();
 
@@ -19,11 +17,13 @@ function withLocation(body: Record<string, unknown>): Record<string, unknown> {
   return body;
 }
 
-function isDatabaseFallbackError(err: unknown): boolean {
-  if (!err) return true;
-  if (!process.env.MONGODB_URI || process.env.MONGODB_URI.includes("xxxxx")) {
-    return true;
-  }
+/**
+ * True when the request failed because the database was unreachable, as
+ * opposed to a bug in the handler. Used only to pick 503 over 500 — it must
+ * never be used to substitute mock data for real data.
+ */
+function isDatabaseUnavailable(err: unknown): boolean {
+  if (!err) return false;
   if (err instanceof mongoose.Error) return true;
   if (err instanceof Error) {
     const msg = err.message.toLowerCase();
@@ -102,18 +102,9 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
 
     res.json({ libraries: docs, total, page: pageNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) });
   } catch (err) {
-    if (isDatabaseFallbackError(err)) {
-      const result = queryLibraries({
-        city, state, district, exam_type,
-        fee_min: fee_min ? Number(fee_min) : undefined,
-        fee_max: fee_max ? Number(fee_max) : undefined,
-        facilities: facilities.length > 0 ? facilities : undefined,
-        min_rating: min_rating ? Number(min_rating) : undefined,
-        available_only: available_only === "true",
-        sort: sort as LibrarySort,
-        page: Number(page), limit: Number(limit),
-      });
-      res.json(result);
+    if (isDatabaseUnavailable(err)) {
+      console.error("[libraries GET] database unavailable", err);
+      res.status(503).json({ error: "Service temporarily unavailable." });
       return;
     }
     console.error("[libraries]", err);
@@ -186,10 +177,9 @@ router.get("/:id", async (req: Request, res: Response): Promise<void> => {
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     res.json({ library });
   } catch (err) {
-    if (isDatabaseFallbackError(err)) {
-      const mock = libraryDetails[req.params.id] ?? null;
-      if (!mock) { res.status(404).json({ error: "Library not found." }); return; }
-      res.json({ library: mock });
+    if (isDatabaseUnavailable(err)) {
+      console.error("[library GET] database unavailable", err);
+      res.status(503).json({ error: "Service temporarily unavailable." });
       return;
     }
     console.error("[library GET]", err);
@@ -223,9 +213,9 @@ router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> =>
     ]);
     res.json({ reviews, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (err) {
-    if (isDatabaseFallbackError(err)) {
-      const all = libraryReviews[req.params.id] ?? [];
-      res.json({ reviews: all.slice(skip, skip + limit), total: all.length, page, totalPages: Math.max(1, Math.ceil(all.length / limit)) });
+    if (isDatabaseUnavailable(err)) {
+      console.error("[reviews GET] database unavailable", err);
+      res.status(503).json({ error: "Service temporarily unavailable." });
       return;
     }
     console.error("[reviews GET]", err);
@@ -240,8 +230,9 @@ router.get("/:id/slots", async (req: Request, res: Response): Promise<void> => {
     const slots = await SlotModel.find({ libraryId: req.params.id }).lean();
     res.json({ slots });
   } catch (err) {
-    if (isDatabaseFallbackError(err)) {
-      res.json({ slots: librarySlots[req.params.id] ?? [] });
+    if (isDatabaseUnavailable(err)) {
+      console.error("[slots GET] database unavailable", err);
+      res.status(503).json({ error: "Service temporarily unavailable." });
       return;
     }
     console.error("[slots GET]", err);

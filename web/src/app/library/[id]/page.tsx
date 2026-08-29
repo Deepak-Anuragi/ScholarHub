@@ -26,7 +26,8 @@ export default async function LibraryDetailPage({
 }: {
   params: { id: string };
 }) {
-  // Directly queries MongoDB (if configured) or mock data — no HTTP fetch.
+  // Fetches from the Express API. A missing library returns null; a failed
+  // request throws and is caught by the route's error boundary.
   const data = await getLibraryPageData(params.id);
 
   if (!data) {

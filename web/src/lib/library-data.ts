@@ -2,10 +2,10 @@
  * Server-side data helpers for the library detail page (Server Component).
  *
  * Fetches from the Express API server via internal HTTP.
- * Falls back to mock data when the API server is unavailable (e.g. cold dev start).
+ * Errors propagate to the caller — a failed fetch must not look like a
+ * successful one with no results.
  */
 
-import { libraryDetails, libraryReviews, librarySlots, type LibraryDetail, type Review, type Slot } from "./mock-data";
 
 // ─── Normalised shapes ────────────────────────────────────────────────────────
 
@@ -64,25 +64,8 @@ export type LibraryPageData = {
 
 // ─── Mock-data adapters ───────────────────────────────────────────────────────
 
-function normaliseMockLibrary(lib: LibraryDetail): NormLibrary {
-  return {
-    id: lib.id, name: lib.name, description: lib.description,
-    address: lib.address, city: lib.city, district: lib.district,
-    state: lib.state, pincode: lib.pincode,
-    totalSeats: lib.totalSeats, availableSeats: lib.availableSeats,
-    monthlyFee: lib.fees.monthly, quarterlyFee: lib.fees.quarterly, annualFee: lib.fees.annual,
-    facilities: lib.facilities, studentTypes: lib.studentTypes, photos: [],
-    ratingAvg: lib.rating, reviewCount: lib.reviewCount,
-  };
-}
 
-function normaliseMockSlots(slots: Slot[]): NormSlot[] {
-  return slots.map((s) => ({ id: s.id, name: s.name, startTime: s.startTime, endTime: s.endTime, totalSeats: s.totalSeats, availableSeats: s.availableSeats }));
-}
 
-function normaliseMockReviews(reviews: Review[]): NormReview[] {
-  return reviews.map((r) => ({ id: r.id, studentName: r.studentName, rating: r.rating, comment: r.comment, isVerified: r.isVerified, date: r.date }));
-}
 
 // ─── API fetch ────────────────────────────────────────────────────────────────
 
@@ -99,7 +82,13 @@ async function fetchFromAPI(id: string): Promise<LibraryPageData | null> {
     fetch(`${apiBase}/api/libraries/${id}/reviews?limit=5`, { cache: "no-store" }),
   ]);
 
-  if (!libRes.ok) return null;
+  // 404 means the library genuinely does not exist, so the caller renders
+  // notFound(). Anything else is our failure, not a missing record, and must
+  // not be disguised as one.
+  if (libRes.status === 404) return null;
+  if (!libRes.ok) {
+    throw new Error(`Library request failed with status ${libRes.status}`);
+  }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const libData = (await libRes.json()) as { library: any };
@@ -143,22 +132,9 @@ async function fetchFromAPI(id: string): Promise<LibraryPageData | null> {
 // ─── Public API ───────────────────────────────────────────────────────────────
 
 export async function getLibraryPageData(id: string): Promise<LibraryPageData | null> {
-  // 1. Try the Express API server
-  try {
-    const result = await fetchFromAPI(id);
-    if (result) return result;
-  } catch (err) {
-    console.warn("[getLibraryPageData] API unavailable, falling back to mock:", err);
-  }
-
-  // 2. Fall back to mock data (slug-based ids)
-  const lib = libraryDetails[id];
-  if (!lib) return null;
-
-  return {
-    library: normaliseMockLibrary(lib),
-    slots: normaliseMockSlots(librarySlots[id] ?? []),
-    reviews: normaliseMockReviews(libraryReviews[id] ?? []),
-    reviewTotal: (libraryReviews[id] ?? []).length,
-  };
+  // Errors propagate on purpose. Serving mock data when the API is down made a
+  // broken backend look like a working page, and meant the "loads real data"
+  // acceptance criterion could never fail. A genuinely missing library returns
+  // null so the caller can render notFound().
+  return fetchFromAPI(id);
 }
