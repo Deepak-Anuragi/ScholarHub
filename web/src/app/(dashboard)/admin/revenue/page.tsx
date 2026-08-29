@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CreditCard, Download, Loader2, TrendingUp } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { CountUp } from "@/components/home/CountUp";
 import { Button } from "@/components/ui/button";
 import { downloadCSV } from "@/lib/csv";
@@ -36,18 +38,28 @@ function fmt(d: string) {
 export default function AdminRevenuePage() {
   const [data, setData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [marking, setMarking] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/revenue", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: RevenueData) => setData(d))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<RevenueData>("/admin/revenue")
+      .then(setData)
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   const handleMarkPaid = async (id: string) => {
     setMarking(id);
-    await fetch(`/api/admin/payouts/${id}`, { method: "PATCH", credentials: "include" });
+    await api.patch(`/admin/payouts/${id}`);
     setData((prev) =>
       prev
         ? {
@@ -119,7 +131,9 @@ export default function AdminRevenuePage() {
           <div className="border-b border-line px-5 py-3">
             <p className="text-sm font-semibold text-forest-900">Commission Ledger</p>
           </div>
-          {loading ? (
+          {error ? (
+            <DataError message={error} onRetry={load} />
+          ) : loading ? (
             <div className="flex h-52 items-center justify-center">
               <Loader2 className="size-5 animate-spin text-forest-900/40" />
             </div>

@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search, Users } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type StudentBooking = {
@@ -17,20 +19,30 @@ type StudentBooking = {
 export default function StudentsPage() {
   const [bookings, setBookings] = useState<StudentBooking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
-  useEffect(() => {
-    fetch("/api/owner/bookings", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { bookings?: StudentBooking[] }) => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ bookings?: StudentBooking[] }>("/owner/bookings")
+      .then((d) => {
         // Show only active students
         const active = (d.bookings ?? []).filter(
           (b) => (b as { status?: string }).status === "ACTIVE"
         ) as StudentBooking[];
         setBookings(active);
       })
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = bookings.filter(
     (b) =>
@@ -66,7 +78,9 @@ export default function StudentsPage() {
       </AnimatedContent>
 
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.08}>
-        {loading ? (
+        {error ? (
+          <DataError message={error} onRetry={load} />
+        ) : loading ? (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
               <div key={i} className="h-24 animate-pulse rounded-2xl bg-white" />

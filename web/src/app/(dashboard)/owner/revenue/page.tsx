@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   CartesianGrid, PieChart, Pie, Cell, Legend,
@@ -8,8 +8,10 @@ import {
 import { TrendingUp } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
 import { CountUp } from "@/components/home/CountUp";
 import ShinyText from "@/components/ShinyText";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const MONTH_NAMES = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -37,13 +39,23 @@ type RevenueData = {
 export default function RevenuePage() {
   const [data, setData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/owner/revenue", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: RevenueData) => setData(d))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<RevenueData>("/owner/revenue")
+      .then(setData)
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const chartData = (data?.monthlyChart ?? []).map((d) => ({
     month: MONTH_NAMES[(d._id.month - 1) % 12],
@@ -186,7 +198,9 @@ export default function RevenuePage() {
           <div className="border-b border-line px-5 py-3">
             <p className="text-sm font-semibold text-forest-900">Payout Ledger</p>
           </div>
-          {loading ? (
+          {error ? (
+            <DataError message={error} onRetry={load} />
+          ) : loading ? (
             <div className="space-y-2 p-4">
               {[1, 2, 3].map((i) => (
                 <div key={i} className="h-10 animate-pulse rounded-xl bg-sage-100" />

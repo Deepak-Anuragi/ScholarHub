@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Check, Loader2, MessageSquare, Star } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -39,32 +41,45 @@ export default function OwnerReviewsPage() {
   const [replyingId, setReplyingId] = useState<string | null>(null);
   const [replyText, setReplyText] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/owner/reviews", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { reviews?: Review[] }) => setReviews(d.reviews ?? []))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ reviews?: Review[] }>("/owner/reviews")
+      .then((d) => setReviews(d.reviews ?? []))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const handleReply = async (reviewId: string) => {
     if (!replyText.trim()) return;
     setSaving(true);
-    const res = await fetch("/api/owner/reviews", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ reviewId, ownerReply: replyText }),
-    });
-    const d = (await res.json()) as { review?: Review };
-    if (d.review) {
-      setReviews((prev) =>
-        prev.map((r) => (r._id === reviewId ? { ...r, ownerReply: replyText } : r))
-      );
+    setError(null);
+    try {
+      const d = await api.patch<{ review?: Review }>("/owner/reviews", {
+        reviewId,
+        ownerReply: replyText,
+      });
+      if (d.review) {
+        setReviews((prev) =>
+          prev.map((r) => (r._id === reviewId ? { ...r, ownerReply: replyText } : r))
+        );
+      }
+      setReplyingId(null);
+      setReplyText("");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not post the reply.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setReplyingId(null);
-    setReplyText("");
   };
 
   const pending = reviews.filter((r) => !r.ownerReply).length;
@@ -88,7 +103,9 @@ export default function OwnerReviewsPage() {
       </AnimatedContent>
 
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.05}>
-        {loading ? (
+        {error ? (
+          <DataError message={error} onRetry={load} />
+        ) : loading ? (
           <div className="space-y-3">
             {[1, 2, 3].map((i) => (
               <div key={i} className="h-28 animate-pulse rounded-2xl bg-white" />

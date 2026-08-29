@@ -6,7 +6,9 @@ import { useDropzone } from "react-dropzone";
 import { Check, ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { getFacilityIcon } from "@/lib/facility-icons";
 import { cn } from "@/lib/utils";
 
@@ -85,17 +87,29 @@ export default function OwnerLibraryPage() {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<Partial<Library>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/owner/library", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { library: Library | null }) => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ library: Library | null }>("/owner/library")
+      .then((d) => {
         if (d.library) {
           setLib(d.library);
           setForm(d.library);
         }
-      });
+      })
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const set = (name: string, val: string) => {
     setForm((prev) => ({ ...prev, [name]: val }));
@@ -113,20 +127,20 @@ export default function OwnerLibraryPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await fetch("/api/owner/library", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(form),
-    });
-    const d = (await res.json()) as { library?: Library };
-    if (d.library) {
-      setLib(d.library);
-      setForm(d.library);
+    setError(null);
+    try {
+      const d = await api.patch<{ library?: Library }>("/owner/library", form);
+      if (d.library) {
+        setLib(d.library);
+        setForm(d.library);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save your changes.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
   };
 
   // Photo upload via Dropzone → Cloudinary (or mock URL in dev)
@@ -154,18 +168,15 @@ export default function OwnerLibraryPage() {
           url = `https://picsum.photos/seed/${Date.now()}/800/600`;
         }
 
-        await fetch("/api/owner/library/photos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ url }),
-        });
+        await api.post("/owner/library/photos", { url });
 
         setLib((prev) =>
           prev
             ? { ...prev, photos: [...prev.photos, { url, isCover: false, order: prev.photos.length }] }
             : prev
         );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not upload the photo.");
       } finally {
         setUploading(false);
       }
@@ -181,32 +192,40 @@ export default function OwnerLibraryPage() {
   });
 
   const deletePhoto = async (url: string) => {
-    await fetch("/api/owner/library/photos", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ url }),
-    });
-    setLib((prev) =>
-      prev ? { ...prev, photos: prev.photos.filter((p) => p.url !== url) } : prev
-    );
+    setError(null);
+    try {
+      await api.delete("/owner/library/photos", { body: JSON.stringify({ url }) });
+      setLib((prev) =>
+        prev ? { ...prev, photos: prev.photos.filter((p) => p.url !== url) } : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the photo.");
+    }
   };
 
   const setCover = async (url: string) => {
-    await fetch("/api/owner/library/photos", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ coverUrl: url }),
-    });
-    setLib((prev) =>
-      prev
-        ? { ...prev, photos: prev.photos.map((p) => ({ ...p, isCover: p.url === url })) }
-        : prev
-    );
+    setError(null);
+    try {
+      await api.patch("/owner/library/photos", { coverUrl: url });
+      setLib((prev) =>
+        prev
+          ? { ...prev, photos: prev.photos.map((p) => ({ ...p, isCover: p.url === url })) }
+          : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not set the cover photo.");
+    }
   };
 
-  if (!lib) {
+  if (error && !lib) {
+    return (
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <DataError message={error} onRetry={load} />
+      </div>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="flex min-h-64 items-center justify-center px-4 py-6">
         <Loader2 className="size-6 animate-spin text-forest-900/40" />
@@ -214,8 +233,28 @@ export default function OwnerLibraryPage() {
     );
   }
 
+  if (!lib) {
+    return (
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <div className="rounded-card border border-dashed border-line bg-white/60 px-6 py-12 text-center">
+          <p className="text-sm font-semibold text-forest-900">
+            No library on your account yet
+          </p>
+          <p className="mt-1 text-sm text-forest-900/50">
+            Create one to start listing seats and taking bookings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
+      {error && (
+        <div className="mb-4">
+          <DataError message={error} />
+        </div>
+      )}
       <AnimatedContent distance={20} duration={0.45} threshold={0}>
         <div className="mb-6 flex items-center justify-between">
           <div>

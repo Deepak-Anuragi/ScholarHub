@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
@@ -9,6 +9,8 @@ import {
 import { ArrowRight, BookMarked, Building2, CheckCircle, CreditCard, TrendingUp, Users } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { CountUp } from "@/components/home/CountUp";
 import GradientText from "@/components/GradientText";
 import ShinyText from "@/components/ShinyText";
@@ -75,13 +77,23 @@ function StatCard({
 export default function AdminOverviewPage() {
   const [stats, setStats] = useState<Stats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/stats", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: Stats) => setStats(d))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<Stats>("/admin/stats")
+      .then(setStats)
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const revenueData = (stats?.revenueChart ?? []).map((d) => ({
     month: MONTH[(d._id.month - 1) % 12],
@@ -123,6 +135,10 @@ export default function AdminOverviewPage() {
         </div>
       </AnimatedContent>
 
+      {error ? (
+        <DataError message={error} onRetry={load} />
+      ) : (
+      <>
       {/* 6 Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {cards.map((card, i) => (
@@ -217,6 +233,8 @@ export default function AdminOverviewPage() {
           </div>
         </AnimatedContent>
       </div>
+      </>
+      )}
     </div>
   );
 }

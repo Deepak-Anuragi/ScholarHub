@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BarChart,
@@ -21,10 +21,12 @@ import {
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
 import { CountUp } from "@/components/home/CountUp";
 import ShinyText from "@/components/ShinyText";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const MONTH_NAMES = [
@@ -107,13 +109,23 @@ export default function OwnerOverviewPage() {
   const { user } = useAuth();
   const [stats, setStats] = useState<OwnerStats | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/owner/stats", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: OwnerStats) => setStats(d))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<OwnerStats>("/owner/stats")
+      .then(setStats)
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const chartData = (stats?.monthlyChart ?? []).map((d) => ({
     month: MONTH_NAMES[(d._id.month - 1) % 12],
@@ -142,6 +154,10 @@ export default function OwnerOverviewPage() {
         </div>
       </AnimatedContent>
 
+      {error ? (
+        <DataError message={error} onRetry={load} />
+      ) : (
+      <>
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {[
@@ -340,6 +356,8 @@ export default function OwnerOverviewPage() {
           ))}
         </div>
       </AnimatedContent>
+      </>
+      )}
     </div>
   );
 }

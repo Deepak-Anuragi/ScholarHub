@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { BookOpen, Loader2, Plus, Trash2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 
 type Course = {
@@ -104,39 +106,50 @@ export default function AdminCoursesPage() {
   const [showModal, setShowModal] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/admin/courses", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { courses?: Course[] }) => setCourses(d.courses ?? []))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ courses?: Course[] }>("/admin/courses")
+      .then((d) => setCourses(d.courses ?? []))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   const handleCreate = async (data: Omit<Course, "_id" | "enrolledCount" | "createdBy" | "createdAt">) => {
     setSaving(true);
-    const res = await fetch("/api/admin/courses", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(data),
-    });
-    const d = (await res.json()) as { course?: Course };
-    if (d.course) setCourses((p) => [d.course!, ...p]);
-    setSaving(false);
-    setShowModal(false);
+    setError(null);
+    try {
+      const d = await api.post<{ course?: Course }>("/admin/courses", data);
+      if (d.course) setCourses((p) => [d.course!, ...p]);
+      setShowModal(false);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not create the course.");
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this course?")) return;
     setDeleting(id);
-    await fetch("/api/admin/courses", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ id }),
-    });
-    setCourses((p) => p.filter((c) => c._id !== id));
-    setDeleting(null);
+    setError(null);
+    try {
+      await api.delete("/admin/courses", { body: JSON.stringify({ id }) });
+      setCourses((p) => p.filter((c) => c._id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the course.");
+    } finally {
+      setDeleting(null);
+    }
   };
 
   return (
@@ -156,7 +169,9 @@ export default function AdminCoursesPage() {
 
         <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.05}>
           <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-            {loading ? (
+            {error ? (
+              <DataError message={error} onRetry={load} />
+            ) : loading ? (
               <div className="flex h-52 items-center justify-center">
                 <Loader2 className="size-5 animate-spin text-forest-900/40" />
               </div>

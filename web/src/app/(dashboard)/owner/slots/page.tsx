@@ -1,10 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Slot = {
@@ -92,46 +94,52 @@ export default function SlotsPage() {
   const [loading, setLoading] = useState(true);
   const [modal, setModal] = useState<"add" | Slot | null>(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/owner/slots", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { slots?: Slot[] }) => setSlots(d.slots ?? []))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ slots?: Slot[] }>("/owner/slots")
+      .then((d) => setSlots(d.slots ?? []))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    load();
+  }, [load]);
+
   const handleSave = async (data: SlotForm) => {
     setSaving(true);
-    if (modal === "add") {
-      const res = await fetch("/api/owner/slots", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      const d = (await res.json()) as { slot?: Slot };
-      if (d.slot) setSlots((p) => [...p, d.slot!]);
-    } else if (modal && typeof modal === "object") {
-      const res = await fetch(`/api/owner/slots/${modal._id}`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify(data),
-      });
-      const d = (await res.json()) as { slot?: Slot };
-      if (d.slot) setSlots((p) => p.map((s) => (s._id === modal._id ? d.slot! : s)));
+    setError(null);
+    try {
+      if (modal === "add") {
+        const d = await api.post<{ slot?: Slot }>("/owner/slots", data);
+        if (d.slot) setSlots((p) => [...p, d.slot!]);
+      } else if (modal && typeof modal === "object") {
+        const d = await api.patch<{ slot?: Slot }>(`/owner/slots/${modal._id}`, data);
+        if (d.slot) setSlots((p) => p.map((s) => (s._id === modal._id ? d.slot! : s)));
+      }
+      setModal(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save the slot.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setModal(null);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this slot?")) return;
-    await fetch(`/api/owner/slots/${id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    setSlots((p) => p.filter((s) => s._id !== id));
+    setError(null);
+    try {
+      await api.delete(`/owner/slots/${id}`);
+      setSlots((p) => p.filter((s) => s._id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the slot.");
+    }
   };
 
   return (
@@ -159,7 +167,9 @@ export default function SlotsPage() {
 
         <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.05}>
           <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-            {loading ? (
+            {error ? (
+              <DataError message={error} onRetry={load} />
+            ) : loading ? (
               <div className="flex h-40 items-center justify-center">
                 <Loader2 className="size-5 animate-spin text-forest-900/40" />
               </div>

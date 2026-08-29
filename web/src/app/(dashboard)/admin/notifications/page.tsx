@@ -5,6 +5,7 @@ import { Bell, Loader2, Send } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 
 type Target = "ALL" | "STUDENT" | "LIBRARY_OWNER";
 
@@ -22,16 +23,12 @@ export default function AdminNotificationsPage() {
     setSending(true);
     setError(null);
     try {
-      const res = await fetch("/api/admin/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ title, message, link: link.trim() || undefined, target }),
+      await api.post("/admin/notifications", {
+        title,
+        message,
+        link: link.trim() || undefined,
+        target,
       });
-      if (!res.ok) {
-        const d = (await res.json()) as { error?: string };
-        throw new Error(d.error ?? "Failed to send notifications.");
-      }
       setSent(true);
       setTitle("");
       setMessage("");

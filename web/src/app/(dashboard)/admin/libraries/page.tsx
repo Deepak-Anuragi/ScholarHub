@@ -18,6 +18,8 @@ import {
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { downloadCSV } from "@/lib/csv";
 import { cn } from "@/lib/utils";
@@ -55,6 +57,7 @@ export default function AdminLibrariesPage() {
   const [stateFilter, setStateFilter] = useState("");
   const [districtFilter, setDistrictFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [error, setError] = useState<string | null>(null);
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     states: [],
     districts: [],
@@ -68,9 +71,13 @@ export default function AdminLibrariesPage() {
     if (districtFilter) params.set("district", districtFilter);
     if (cityFilter) params.set("city", cityFilter);
 
-    fetch(`/api/admin/libraries?${params.toString()}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { libraries?: Library[] }) => setLibraries(d.libraries ?? []))
+    setError(null);
+    api
+      .get<{ libraries?: Library[] }>(`/admin/libraries?${params.toString()}`)
+      .then((d) => setLibraries(d.libraries ?? []))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, [cityFilter, districtFilter, stateFilter]);
 
@@ -83,15 +90,19 @@ export default function AdminLibrariesPage() {
     if (stateFilter) params.set("state", stateFilter);
     if (districtFilter) params.set("district", districtFilter);
 
-    fetch(`/api/admin/libraries?${params.toString()}`, { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: FilterOptions) =>
+    api
+      .get<FilterOptions>(`/admin/libraries?${params.toString()}`)
+      .then((d) =>
         setFilterOptions({
           states: d.states ?? [],
           districts: d.districts ?? [],
           cities: d.cities ?? [],
         })
-      );
+      )
+      .catch(() => {
+        // Filter dropdowns are a convenience; the table already reports the
+        // real failure, so keep whatever options we last had.
+      });
   }, [districtFilter, stateFilter]);
 
   const updateLib = (id: string, patch: Partial<Library>) =>
@@ -99,44 +110,53 @@ export default function AdminLibrariesPage() {
 
   const handleVerify = async (id: string) => {
     setActing(id + "_verify");
-    await fetch(`/api/admin/libraries/${id}/verify`, {
-      method: "PATCH",
-      credentials: "include",
-    });
-    updateLib(id, { isVerified: true });
+    setError(null);
+    try {
+      await api.patch(`/admin/libraries/${id}/verify`);
+      updateLib(id, { isVerified: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not verify the library.");
+    }
     setActing(null);
   };
 
   const handleSuspend = async (id: string) => {
     setActing(id + "_suspend");
-    await fetch(`/api/admin/libraries/${id}/suspend`, {
-      method: "PATCH",
-      credentials: "include",
-    });
-    updateLib(id, { isActive: false });
+    setError(null);
+    try {
+      await api.patch(`/admin/libraries/${id}/suspend`);
+      updateLib(id, { isActive: false });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not suspend the library.");
+    }
     setActing(null);
   };
 
   const handleDelete = async (id: string) => {
     if (!confirm("Permanently delete this library?")) return;
     setActing(id + "_delete");
-    await fetch(`/api/admin/libraries/${id}`, { method: "DELETE", credentials: "include" });
-    setLibraries((prev) => prev.filter((l) => l._id !== id));
+    setError(null);
+    try {
+      await api.delete(`/admin/libraries/${id}`);
+      setLibraries((prev) => prev.filter((l) => l._id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the library.");
+    }
     setActing(null);
   };
 
   const handleBulk = async (action: "verify" | "suspend") => {
     if (selected.size === 0) return;
-    await fetch("/api/admin/libraries", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ action, ids: [...selected] }),
-    });
-    selected.forEach((id) =>
-      updateLib(id, action === "verify" ? { isVerified: true } : { isActive: false })
-    );
-    setSelected(new Set());
+    setError(null);
+    try {
+      await api.patch("/admin/libraries", { action, ids: [...selected] });
+      selected.forEach((id) =>
+        updateLib(id, action === "verify" ? { isVerified: true } : { isActive: false })
+      );
+      setSelected(new Set());
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Bulk action failed.");
+    }
   };
 
   const columns = useMemo(
@@ -359,7 +379,9 @@ export default function AdminLibrariesPage() {
 
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.08}>
         <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-          {loading ? (
+          {error ? (
+            <DataError message={error} onRetry={loadLibraries} />
+          ) : loading ? (
             <div className="flex h-52 items-center justify-center">
               <Loader2 className="size-5 animate-spin text-forest-900/40" />
             </div>
