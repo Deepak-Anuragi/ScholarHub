@@ -8,6 +8,7 @@ import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
+import { PLATFORM_RATE_LABEL, priceBooking } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
 // ─── Types ───────────────────────────────────────────────────────────────────
@@ -102,8 +103,6 @@ function maxStartIso(): string {
   return d.toISOString().slice(0, 10);
 }
 
-const PLATFORM_RATE = 0.02; // 2% convenience fee
-
 // ─── Step indicator ───────────────────────────────────────────────────────────
 
 function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
@@ -171,8 +170,7 @@ function Step1({
   onNext: () => void;
 }) {
   const fee = planFee(fees, plan);
-  const platformFee = Math.round(fee * PLATFORM_RATE);
-  const total = fee + platformFee;
+  const { platformFee, total } = priceBooking(fee);
   const startDt = new Date(startDate + "T00:00:00");
   const endDt = calcEndDate(startDt, plan);
 
@@ -352,8 +350,7 @@ function Step2({
   const { user } = useAuth();
 
   const fee = planFee(fees, plan);
-  const platformFee = Math.round(fee * PLATFORM_RATE);
-  const total = fee + platformFee;
+  const { platformFee, total } = priceBooking(fee);
   const startDt = new Date(startDate + "T00:00:00");
   const endDt = calcEndDate(startDt, plan);
   const slot = slots.find((s) => s.id === selectedSlotId);
@@ -391,7 +388,7 @@ function Step2({
                 </tr>
                 <tr className="border-b border-line">
                   <td className="bg-sage-100/40 px-4 py-2.5 font-medium text-forest-900/70">
-                    Platform Fee (2%)
+                    Platform Fee ({PLATFORM_RATE_LABEL})
                   </td>
                   <td className="px-4 py-2.5 text-forest-900/70">
                     ₹{platformFee.toLocaleString("en-IN")}

@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { Router, Request, Response } from "express";
 
 import connectDB from "../lib/mongodb";
+import { priceBooking, splitPayout } from "../lib/pricing";
 import BookingModel from "../models/Booking";
 import DigitalIDModel from "../models/DigitalID";
 import PayoutLedgerModel from "../models/PayoutLedger";
@@ -43,10 +44,9 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
     const start = new Date(startDate);
     const end = plan === "QUARTERLY" ? addMonths(start, 3) : plan === "ANNUAL" ? addMonths(start, 12) : addMonths(start, 1);
 
-    const libFee = plan === "QUARTERLY" ? (library.quarterlyFee ?? library.monthlyFee * 3)
+    const planFee = plan === "QUARTERLY" ? (library.quarterlyFee ?? library.monthlyFee * 3)
       : plan === "ANNUAL" ? (library.annualFee ?? library.monthlyFee * 12) : library.monthlyFee;
-    const platformFee = Math.round(libFee * 0.02);
-    const total = libFee + platformFee;
+    const { libraryFee, platformFee, total } = priceBooking(planFee);
 
     let razorpayOrderId: string;
     let razorpayKeyId: string | undefined;
@@ -63,13 +63,14 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
 
     const booking = await BookingModel.create({
       studentId: user.id, libraryId, slotId: slotId ?? undefined,
-      startDate: start, endDate: end, plan, amountPaid: total,
+      startDate: start, endDate: end, plan,
+      libraryFee, platformFee, amountPaid: total,
       paymentStatus: "PENDING", razorpayOrderId,
     });
 
     res.json({
       bookingId: String(booking._id), razorpay_order_id: razorpayOrderId,
-      razorpay_key_id: razorpayKeyId, amount: total, library_fee: libFee,
+      razorpay_key_id: razorpayKeyId, amount: total, library_fee: libraryFee,
       platform_fee: platformFee, currency: "INR", library_name: library.name,
       plan, start_date: start.toISOString(), end_date: end.toISOString(),
     });
@@ -183,14 +184,15 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
       libraryId: booking.libraryId, qrData, issuedAt: new Date(), validUntil: booking.endDate,
     });
 
-    const commissionRate = 0.10;
-    const platformShare = Math.round(booking.amountPaid * commissionRate);
-    const ownerShare = booking.amountPaid - platformShare;
+    // The owner is paid the library's fee in full; the platform keeps the fee
+    // it charged the student on top of it. Derived from the same rate as
+    // create-order, so the ledger always reconciles with what was charged.
+    const split = splitPayout(booking.amountPaid, booking.libraryFee);
     const library = await LibraryModel.findById(booking.libraryId);
     if (library) {
       await PayoutLedgerModel.create({
         bookingId: booking._id, libraryId: booking.libraryId, ownerId: library.ownerId,
-        totalAmount: booking.amountPaid, commissionRate, platformShare, ownerShare, payoutStatus: "PENDING",
+        ...split, payoutStatus: "PENDING",
       });
     }
 
