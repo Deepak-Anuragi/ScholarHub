@@ -11,10 +11,70 @@ import NotificationModel from "../models/Notification";
 import PayoutLedgerModel from "../models/PayoutLedger";
 import { sendSeatAlertEmail } from "../lib/email";
 import { emitNotificationCount } from "../lib/notifications";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireOwner } from "../middleware/auth";
 
 const router = Router();
 router.use(requireAuth);
+router.use(requireOwner);
+
+/**
+ * Fields an owner is allowed to change on their own library.
+ *
+ * Deliberately excludes isVerified, isActive, ratingAvg, reviewCount,
+ * availableSeats and ownerId: those are set by admin review, by the rating
+ * aggregate, or by the booking flow. Spreading req.body would let an owner
+ * self-verify and bypass admin approval entirely.
+ */
+const EDITABLE_LIBRARY_FIELDS = [
+  "name",
+  "description",
+  "address",
+  "city",
+  "state",
+  "district",
+  "pincode",
+  "contactPhone",
+  "contactEmail",
+  "whatsapp",
+  "monthlyFee",
+  "quarterlyFee",
+  "annualFee",
+  "facilities",
+  "studentTypes",
+  "totalSeats",
+  "openTime",
+  "closeTime",
+  "lat",
+  "lng",
+] as const;
+
+/** Slot fields an owner may change. libraryId is deliberately absent. */
+const EDITABLE_SLOT_FIELDS = [
+  "name",
+  "startTime",
+  "endTime",
+  "totalSeats",
+  "availableSeats",
+] as const;
+
+function pick(
+  body: Record<string, unknown>,
+  allowed: readonly string[]
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (body[key] !== undefined) picked[key] = body[key];
+  }
+  return picked;
+}
+
+function pickEditable(body: Record<string, unknown>): Record<string, unknown> {
+  return pick(body, EDITABLE_LIBRARY_FIELDS);
+}
+
+function pickSlotFields(body: Record<string, unknown>): Record<string, unknown> {
+  return pick(body, EDITABLE_SLOT_FIELDS);
+}
 
 function withLocation(body: Record<string, unknown>): Record<string, unknown> {
   const lat = Number(body.lat);
@@ -74,7 +134,7 @@ router.patch("/library", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
     await connectDB();
-    const library = await LibraryModel.findOneAndUpdate({ ownerId: user.id }, { $set: withLocation(req.body) }, { new: true, runValidators: true });
+    const library = await LibraryModel.findOneAndUpdate({ ownerId: user.id }, { $set: withLocation(pickEditable(req.body)) }, { new: true, runValidators: true });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     res.json({ library });
   } catch (err) {
@@ -89,7 +149,7 @@ router.post("/library", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const existing = await LibraryModel.findOne({ ownerId: user.id });
     if (existing) { res.status(409).json({ error: "You already have a library. Edit it instead." }); return; }
-    const library = await LibraryModel.create({ ...withLocation(req.body), ownerId: user.id });
+    const library = await LibraryModel.create({ ...withLocation(pickEditable(req.body)), ownerId: user.id });
     res.status(201).json({ library });
   } catch (err) {
     console.error("[owner/library POST]", err);
@@ -266,7 +326,14 @@ router.patch("/slots/:id", async (req: Request, res: Response): Promise<void> =>
     const prevSlot = await SlotModel.findOne({ _id: req.params.id, libraryId: library._id });
     if (!prevSlot) { res.status(404).json({ error: "Slot not found." }); return; }
 
-    const updatedSlot = await SlotModel.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true, runValidators: true });
+    // Whitelisted so libraryId cannot be reassigned — the ownership check above
+    // proves the slot is theirs today, not that they may move it elsewhere.
+    // availableSeats stays editable: raising it is what triggers the waitlist.
+    const updatedSlot = await SlotModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: pickSlotFields(req.body) },
+      { new: true, runValidators: true }
+    );
 
     const freed = (updatedSlot?.availableSeats ?? 0) - prevSlot.availableSeats;
     if (freed > 0) {

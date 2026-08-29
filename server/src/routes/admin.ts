@@ -245,7 +245,18 @@ router.post("/courses", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
     await connectDB();
-    const course = await CourseModel.create({ ...req.body, createdBy: user.id });
+    // Whitelisted rather than spread: enrolledCount and createdBy are derived,
+    // never client-supplied.
+    const { title, description, subject, examTypes, fileUrl, thumbnailUrl, fileSize } =
+      req.body as Record<string, unknown>;
+    if (!title || !subject || !fileUrl) {
+      res.status(400).json({ error: "title, subject and fileUrl are required." });
+      return;
+    }
+    const course = await CourseModel.create({
+      title, description, subject, examTypes, fileUrl, thumbnailUrl, fileSize,
+      createdBy: user.id,
+    });
     await course.populate("createdBy", "name");
     res.status(201).json({ course: { ...course.toObject(), _id: String(course._id), createdBy: course.createdBy && typeof course.createdBy === "object" ? { ...(course.createdBy as unknown as Record<string, unknown>), _id: String((course.createdBy as unknown as { _id: unknown })._id) } : String(course.createdBy) } });
   } catch (err) {
