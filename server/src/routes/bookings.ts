@@ -80,36 +80,99 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
 });
 
 // ── POST /api/bookings/confirm ─────────────────────────────────────────────
-router.post("/confirm", async (req: Request, res: Response): Promise<void> => {
+router.post("/confirm", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
+    const user = req.sessionUser!;
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = req.body as {
       razorpay_order_id?: string; razorpay_payment_id?: string;
       razorpay_signature?: string; bookingId?: string;
     };
 
-    const isMockOrder = razorpay_order_id?.startsWith("mock_order_");
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    if (!bookingId || !razorpay_order_id) {
+      res.status(400).json({ error: "bookingId and razorpay_order_id are required." });
+      return;
+    }
 
-    if (!isMockOrder && keySecret && razorpay_order_id && razorpay_payment_id) {
-      const expected = crypto.createHmac("sha256", keySecret)
+    const isMockOrder = razorpay_order_id.startsWith("mock_order_");
+    const keyId = process.env.RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const razorpayConfigured = Boolean(keyId && keySecret);
+
+    if (isMockOrder) {
+      // Mock orders exist so the flow is demoable without Razorpay keys. They
+      // must never be accepted by a configured or production deployment —
+      // otherwise anyone can mint a paid booking by prefixing their order id.
+      if (razorpayConfigured || process.env.NODE_ENV === "production") {
+        res.status(400).json({ error: "Invalid payment reference." });
+        return;
+      }
+    } else {
+      // Fail closed: a real order without a verifiable signature is rejected.
+      // Previously a missing RAZORPAY_KEY_SECRET silently skipped this check.
+      if (!razorpayConfigured) {
+        res.status(503).json({ error: "Payment verification is unavailable." });
+        return;
+      }
+      if (!razorpay_payment_id || !razorpay_signature) {
+        res.status(400).json({ error: "Missing payment confirmation details." });
+        return;
+      }
+      const expected = crypto.createHmac("sha256", keySecret!)
         .update(`${razorpay_order_id}|${razorpay_payment_id}`).digest("hex");
-      if (expected !== razorpay_signature) {
+      const expectedBuf = Buffer.from(expected, "utf8");
+      const actualBuf = Buffer.from(razorpay_signature, "utf8");
+      if (
+        expectedBuf.length !== actualBuf.length ||
+        !crypto.timingSafeEqual(expectedBuf, actualBuf)
+      ) {
         res.status(400).json({ error: "Invalid payment signature." });
         return;
       }
     }
 
     await connectDB();
+
+    // paymentStatus: "PENDING" in the filter makes this idempotent, and
+    // studentId scopes it to the caller. Razorpay retries webhooks, so a
+    // replay must not decrement seats or write ledger rows a second time.
     const booking = await BookingModel.findOneAndUpdate(
-      { _id: bookingId, razorpayOrderId: razorpay_order_id },
+      {
+        _id: bookingId,
+        razorpayOrderId: razorpay_order_id,
+        studentId: user.id,
+        paymentStatus: "PENDING",
+      },
       { paymentStatus: "SUCCESS", status: "ACTIVE", paymentId: razorpay_payment_id },
       { new: true }
     );
 
-    if (!booking) { res.status(404).json({ error: "Booking not found." }); return; }
+    if (!booking) {
+      // Either already confirmed (a retry) or not this student's booking.
+      // Answer 200 for an own, already-successful booking so retries settle.
+      const existing = await BookingModel.findOne({
+        _id: bookingId,
+        razorpayOrderId: razorpay_order_id,
+        studentId: user.id,
+      });
+      if (existing?.paymentStatus === "SUCCESS") {
+        res.json({ success: true, bookingId: String(existing._id), alreadyConfirmed: true });
+        return;
+      }
+      res.status(404).json({ error: "Booking not found." });
+      return;
+    }
 
-    if (booking.slotId) await SlotModel.findByIdAndUpdate(booking.slotId, { $inc: { availableSeats: -1 } });
-    await LibraryModel.findByIdAndUpdate(booking.libraryId, { $inc: { availableSeats: -1 } });
+    // Guarded so a seat count can never be driven negative by a race.
+    if (booking.slotId) {
+      await SlotModel.findOneAndUpdate(
+        { _id: booking.slotId, availableSeats: { $gt: 0 } },
+        { $inc: { availableSeats: -1 } }
+      );
+    }
+    await LibraryModel.findOneAndUpdate(
+      { _id: booking.libraryId, availableSeats: { $gt: 0 } },
+      { $inc: { availableSeats: -1 } }
+    );
 
     const qrData = JSON.stringify({
       bookingId: String(booking._id), studentId: String(booking.studentId),
