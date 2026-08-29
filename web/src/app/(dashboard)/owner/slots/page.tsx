@@ -1,11 +1,12 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -40,23 +41,14 @@ function SlotModal({
     setForm((p) => ({ ...p, [k]: ["totalSeats", "availableSeats"].includes(k) ? Number(v) : v }));
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/40 backdrop-blur-sm p-4"
-      onClick={onClose}
+    <Modal
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={initial ? "Edit Slot" : "Add Slot"}
     >
-      <div
-        className="w-full max-w-md rounded-card bg-white p-6 shadow-lift"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="mb-4 flex items-center justify-between">
-          <p className="font-semibold text-forest-900">
-            {initial ? "Edit Slot" : "Add Slot"}
-          </p>
-          <button type="button" onClick={onClose}>
-            <X className="size-4 text-forest-900/50" />
-          </button>
-        </div>
-        <div className="space-y-3">
+      <div className="space-y-3">
           {(
             [
               { label: "Slot Name (e.g. Morning)", key: "name" as const, type: "text" },
@@ -74,18 +66,17 @@ function SlotModal({
                 onChange={(e) => set(key, e.target.value)}
                 className="h-10 rounded-xl border border-line bg-sage-100/40 px-3 text-sm outline-none transition focus:border-forest-700"
               />
-            </label>
-          ))}
-        </div>
-        <Button
-          onClick={() => onSave(form)}
-          disabled={saving || !form.name || !form.startTime || !form.endTime}
-          className="mt-5 w-full bg-forest-700 text-white hover:bg-forest-900"
-        >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : initial ? "Save Changes" : "Create Slot"}
-        </Button>
+          </label>
+        ))}
       </div>
-    </div>
+      <Button
+        onClick={() => onSave(form)}
+        disabled={saving || !form.name || !form.startTime || !form.endTime}
+        className="mt-5 w-full bg-forest-700 text-white hover:bg-forest-900"
+      >
+        {saving ? <Loader2 className="size-4 animate-spin" /> : initial ? "Save Changes" : "Create Slot"}
+      </Button>
+    </Modal>
   );
 }
 

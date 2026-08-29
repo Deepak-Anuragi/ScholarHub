@@ -12,7 +12,6 @@ import {
   CalendarDays,
   ArrowRight,
   IdCard,
-  X,
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
@@ -21,6 +20,7 @@ import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
 import { CountUp } from "@/components/home/CountUp";
 import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
@@ -183,9 +183,7 @@ function ActiveBookingCard({
             </Button>
             {isExpiringSoon && (
               <Button asChild variant="outline" size="sm" className="flex-1">
-                <Link href={`/library/${booking.libraryId._id ?? ""}`}>
-                  Renew
-                </Link>
+                <Link href={`/library/${booking.libraryId._id ?? ""}`}>Renew</Link>
               </Button>
             )}
           </div>
@@ -395,19 +393,14 @@ export default function StudentOverviewPage() {
       )}
 
       {/* Digital ID Modal */}
-      {showIdModal && activeBooking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-          <div className="relative w-full max-w-sm rounded-3xl bg-white p-6 shadow-2xl">
-            <button
-              onClick={() => setShowIdModal(false)}
-              className="absolute right-4 top-4 rounded-full p-1 text-forest-900/40 hover:bg-sage-100 hover:text-forest-900"
-            >
-              <X className="size-5" />
-            </button>
-            <p className="mb-4 font-display text-lg text-forest-900">
-              Student Digital ID
-            </p>
-            <DigitalIDCard
+      {activeBooking && (
+        <Modal
+          open={showIdModal}
+          onOpenChange={setShowIdModal}
+          title="Student Digital ID"
+          className="max-w-sm rounded-3xl"
+        >
+          <DigitalIDCard
               bookingId={activeBooking._id}
               studentId={activeBooking.studentId || user?.id || ""}
               studentName={user?.name || "Student"}
@@ -417,11 +410,10 @@ export default function StudentOverviewPage() {
               libraryId={activeBooking.libraryId._id}
               slotName={activeBooking.slotId?.name}
               plan={activeBooking.plan}
-              startDate={activeBooking.startDate}
-              endDate={activeBooking.endDate}
-            />
-          </div>
-        </div>
+            startDate={activeBooking.startDate}
+            endDate={activeBooking.endDate}
+          />
+        </Modal>
       )}
     </div>
   );

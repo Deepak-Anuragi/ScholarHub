@@ -1,12 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Loader2, Pencil, Plus, Trash2, X } from "lucide-react";
+import { BookOpen, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
+import { Modal } from "@/components/ui/modal";
 
 type Course = {
   _id: string;
@@ -54,13 +55,14 @@ function CourseModal({
     }));
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/40 backdrop-blur-sm p-4" onClick={onClose}>
-      <div className="w-full max-w-md rounded-card bg-white p-6 shadow-lift" onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between">
-          <p className="font-semibold text-forest-900">{editing ? "Edit Course" : "Add Course"}</p>
-          <button type="button" onClick={onClose}><X className="size-4 text-forest-900/50" /></button>
-        </div>
-        <div className="space-y-3">
+    <Modal
+      open
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={editing ? "Edit Course" : "Add Course"}
+    >
+      <div className="space-y-3">
           {(["title","subject","fileUrl"] as const).map((key) => (
             <label key={key} className="grid gap-1.5 text-sm font-semibold capitalize text-forest-900">
               {key === "fileUrl" ? "File URL" : key.charAt(0).toUpperCase() + key.slice(1)}
@@ -96,16 +98,15 @@ function CourseModal({
               ))}
             </div>
           </div>
-        </div>
-        <Button
-          onClick={() => onSave(form)}
-          disabled={saving || !form.title || !form.subject || !form.fileUrl}
-          className="mt-5 w-full bg-forest-900 text-white hover:bg-forest-700"
-        >
-          {saving ? <Loader2 className="size-4 animate-spin" /> : editing ? "Save Changes" : "Create Course"}
-        </Button>
       </div>
-    </div>
+      <Button
+        onClick={() => onSave(form)}
+        disabled={saving || !form.title || !form.subject || !form.fileUrl}
+        className="mt-5 w-full bg-forest-900 text-white hover:bg-forest-700"
+      >
+        {saving ? <Loader2 className="size-4 animate-spin" /> : editing ? "Save Changes" : "Create Course"}
+      </Button>
+    </Modal>
   );
 }
 
