@@ -7,9 +7,10 @@ import { getLibraryPageData } from "@/lib/library-data";
 export async function generateMetadata({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const data = await getLibraryPageData(params.id);
+  const { id } = await params;
+  const data = await getLibraryPageData(id);
   if (!data) return { title: "Library not found" };
 
   const { library } = data;
@@ -24,11 +25,15 @@ export async function generateMetadata({
 export default async function LibraryDetailPage({
   params,
 }: {
-  params: { id: string };
+  // Next 16 hands params to a page as a Promise. Reading .id straight off it
+  // yields undefined, which reached the API as /api/libraries/undefined.
+  params: Promise<{ id: string }>;
 }) {
+  const { id } = await params;
+
   // Fetches from the Express API. A missing library returns null; a failed
   // request throws and is caught by the route's error boundary.
-  const data = await getLibraryPageData(params.id);
+  const data = await getLibraryPageData(id);
 
   if (!data) {
     notFound();
