@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   BookMarked,
+  BookOpen,
   Bell,
   CreditCard,
   GraduationCap,
@@ -263,14 +264,17 @@ export default function StudentOverviewPage() {
       {/* Welcome */}
       <AnimatedContent distance={20} duration={0.5} threshold={0}>
         <div>
-          <BlurText
-            text={`${greeting()}, ${firstName}! 📚`}
-            className="font-display text-3xl text-forest-900 sm:text-4xl"
-            delay={80}
-            animateBy="words"
-            direction="top"
-            immediate
-          />
+          <div className="flex items-center gap-2">
+            <BlurText
+              text={`${greeting()}, ${firstName}!`}
+              className="font-display text-3xl text-forest-900 sm:text-4xl"
+              delay={80}
+              animateBy="words"
+              direction="top"
+              immediate
+            />
+            <BookOpen className="size-7 text-[#16a34a]" aria-hidden />
+          </div>
           <p className="mt-2 text-sm text-forest-900/60">
             {new Date().toLocaleDateString("en-IN", {
               weekday: "long",

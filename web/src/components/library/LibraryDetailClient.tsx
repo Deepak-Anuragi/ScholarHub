@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import Image from "next/image";
-import { MapPin, Phone, Mail, MessageCircle, Star, Users, Sofa } from "lucide-react";
+import { Check, MapPin, Phone, Mail, MessageCircle, Star, Users, Sofa } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import SplitText from "@/components/SplitText";
@@ -738,7 +738,8 @@ export function LibraryDetailClient({
                   )}
                   {review.isVerified && (
                     <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#16a34a]/10 px-2.5 py-0.5 text-xs font-semibold text-[#16a34a]">
-                      ✓ Verified Student
+                      <Check className="size-3" aria-hidden />
+                      Verified Student
                     </span>
                   )}
                 </div>

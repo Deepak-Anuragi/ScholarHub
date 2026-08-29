@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
-import { ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { Button } from "@/components/ui/button";
@@ -231,7 +231,7 @@ export default function OwnerLibraryPage() {
             disabled={saving}
             className="bg-forest-700 text-white hover:bg-forest-900"
           >
-            {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? "✓ Saved!" : "Save Changes"}
+            {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <><Check className="size-4" aria-hidden />Saved!</> : "Save Changes"}
           </Button>
         </div>
       </AnimatedContent>

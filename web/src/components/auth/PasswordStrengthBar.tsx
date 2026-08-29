@@ -1,5 +1,6 @@
 "use client";
 
+import { Check, Circle } from "lucide-react";
 import { getPasswordStrength } from "@/lib/validations/auth";
 
 interface Props {
@@ -47,8 +48,8 @@ export default function PasswordStrengthBar({ password }: Props) {
       <ul className="grid grid-cols-2 gap-x-4 gap-y-0.5">
         {items.map(({ label, done }) => (
           <li key={label} className="flex items-center gap-1.5 text-xs">
-            <span className={done ? "text-green-600" : "text-gray-300"}>
-              {done ? "✓" : "○"}
+            <span className={done ? "text-green-600" : "text-gray-300"} aria-hidden>
+              {done ? <Check className="size-3.5" /> : <Circle className="size-3.5" />}
             </span>
             <span className={done ? "text-green-700" : "text-forest-900/50"}>
               {label}

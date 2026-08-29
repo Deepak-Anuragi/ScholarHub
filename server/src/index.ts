@@ -195,7 +195,7 @@ app.use((_req, res) => {
 
 // ── Start ──────────────────────────────────────────────────────────────────
 server.listen(PORT, () => {
-  console.log(`\n🚀  Scholar's Hub API server with Socket.io`);
+  console.log(`\n   Scholar's Hub API server with Socket.io`);
   console.log(`   Listening at  http://localhost:${PORT}`);
   console.log(`   Allowed origins: ${allowedOrigins.join(", ")}`);
   console.log(`   Environment   ${process.env.NODE_ENV ?? "development"}\n`);

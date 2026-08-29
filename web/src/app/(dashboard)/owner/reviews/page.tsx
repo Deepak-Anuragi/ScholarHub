@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, MessageSquare, Star } from "lucide-react";
+import { Check, Loader2, MessageSquare, Star } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { Button } from "@/components/ui/button";
@@ -136,8 +136,9 @@ export default function OwnerReviewsPage() {
                         <p className="mt-2 text-sm text-forest-900/70">{r.comment}</p>
                       )}
                       {r.isVerified && (
-                        <span className="mt-2 inline-flex text-[10px] font-semibold text-[#16a34a]">
-                          ✓ Verified
+                        <span className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-[#16a34a]">
+                          <Check className="size-3" aria-hidden />
+                          Verified
                         </span>
                       )}
                     </div>

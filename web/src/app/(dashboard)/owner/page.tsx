@@ -15,6 +15,7 @@ import {
   BookMarked,
   ArrowRight,
   CalendarDays,
+  Hand,
   Star,
   Users,
 } from "lucide-react";
@@ -126,8 +127,9 @@ export default function OwnerOverviewPage() {
       {/* Header */}
       <AnimatedContent distance={20} duration={0.5} threshold={0}>
         <div className="mb-6">
-          <h1 className="font-display text-3xl text-forest-900 sm:text-4xl">
-            Welcome back, {firstName} 👋
+          <h1 className="flex items-center gap-2 font-display text-3xl text-forest-900 sm:text-4xl">
+            Welcome back, {firstName}
+            <Hand className="size-7 text-[#16a34a]" aria-hidden />
           </h1>
           {stats?.library && (
             <p className="mt-1 text-sm text-forest-900/60">
