@@ -61,6 +61,9 @@ function CourseCard({
             height={360}
             className="h-full w-full object-cover"
             loading="lazy"
+            // A free-text URL an admin typed, so it is served as-is rather
+            // than through the optimizer, which only accepts our own host.
+            unoptimized
           />
         )}
       </div>

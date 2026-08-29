@@ -83,6 +83,8 @@ Roles are `student`, `owner` and `admin`. Admin signup additionally requires
 | `CLIENT_URL` | no | CORS origin(s), comma-separated. Default `http://localhost:3000` |
 | `ADMIN_SECRET_KEY` | for admin signup | Without it `/api/auth/signup/admin` always returns 403 |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | in production | Blank in dev falls back to mock orders; both required in production |
+| `PLATFORM_RATE` | no | Commission charged on top of the library fee. Default `0.02` |
+| `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | for photo upload | All three, or the owner dashboard cannot add photos |
 | `SMTP_*` | no | Nodemailer. Unset disables email; seat alerts stay in-app |
 
 ### `web/.env.local`
@@ -93,10 +95,23 @@ Roles are `student`, `owner` and `admin`. Admin signup additionally requires
 | `NEXT_PUBLIC_API_URL` | no | Express origin for SSR fetches. Default `http://localhost:5000` |
 | `NEXT_PUBLIC_APP_URL` | no | Default `http://localhost:3000` |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | for `/map` | Restrict by HTTP referrer |
-| `NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME` | no | Owner photo upload; blank stores a placeholder URL |
 
 > The web project does not connect to MongoDB. All database access goes through
 > the Express server.
+
+### Library photos
+
+Owners upload from the dashboard straight to Cloudinary, using a short-lived
+signature minted per upload by `GET /api/owner/library/photos/signature`. The
+signature pins the destination folder to that owner's own library, so the
+browser never holds an upload preset or credential, and the server stores a URL
+only if it points at our own Cloudinary account. `next.config.ts` allows the
+image optimizer exactly that one host.
+
+Not built: photo **reordering**. `photos[]` carries an `order` field and the
+gallery renders in that order, but there is no drag-to-reorder control and no
+endpoint to write a new order. Deleting a photo does not remove the file from
+Cloudinary either — only the reference to it.
 
 ---
 

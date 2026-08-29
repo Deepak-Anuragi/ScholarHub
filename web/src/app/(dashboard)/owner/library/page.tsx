@@ -19,6 +19,15 @@ const ALL_FACILITIES = [
 const ALL_STUDENT_TYPES = ["Govt Exam","Entrance Exam","School","Professional"];
 
 type Photo = { url: string; isCover: boolean; order: number };
+
+/** What GET /owner/library/photos/signature returns. */
+type UploadSignature = {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+};
 type Library = {
   _id: string;
   name: string;
@@ -143,30 +152,34 @@ export default function OwnerLibraryPage() {
     }
   };
 
-  // Photo upload via Dropzone → Cloudinary (or mock URL in dev)
+  // Dropzone → signed Cloudinary upload → our API.
+  // The signature is minted per upload by the server and pins the folder, so
+  // the browser never carries an upload preset or a credential of its own.
   const onDrop = useCallback(
     async (files: File[]) => {
       if (!files[0]) return;
       setUploading(true);
+      setError(null);
       try {
-        // If Cloudinary is not configured, use a placeholder URL
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-        let url: string;
+        const sig = await api.get<UploadSignature>("/owner/library/photos/signature");
 
-        if (cloudName) {
-          const fd = new FormData();
-          fd.append("file", files[0]);
-          fd.append("upload_preset", "scholarshub");
-          const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-            { method: "POST", body: fd }
-          );
-          const data = (await res.json()) as { secure_url: string };
-          url = data.secure_url;
-        } else {
-          // Dev fallback — use a picsum placeholder
-          url = `https://picsum.photos/seed/${Date.now()}/800/600`;
+        const fd = new FormData();
+        fd.append("file", files[0]);
+        fd.append("api_key", sig.apiKey);
+        fd.append("timestamp", String(sig.timestamp));
+        fd.append("folder", sig.folder);
+        fd.append("signature", sig.signature);
+
+        // Cloudinary is a third-party host, so this one stays a plain fetch.
+        const res = await fetch(sig.uploadUrl, { method: "POST", body: fd });
+        const data = (await res.json().catch(() => ({}))) as {
+          secure_url?: string;
+          error?: { message?: string };
+        };
+        if (!res.ok || !data.secure_url) {
+          throw new Error(data.error?.message ?? "Cloudinary rejected the upload.");
         }
+        const url = data.secure_url;
 
         await api.post("/owner/library/photos", { url });
 

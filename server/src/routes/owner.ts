@@ -2,6 +2,7 @@ import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
+import { isCloudinaryConfigured, isCloudinaryUrl, signUpload } from "../lib/cloudinary";
 import LibraryModel from "../models/Library";
 import BookingModel from "../models/Booking";
 import ReviewModel from "../models/Review";
@@ -158,12 +159,44 @@ router.post("/library", async (req: Request, res: Response): Promise<void> => {
 });
 
 // ─── LIBRARY PHOTOS ───────────────────────────────────────────────────────
+
+/**
+ * A short-lived upload signature scoped to this owner's own library folder.
+ * The browser uploads straight to Cloudinary with it, then posts the returned
+ * secure_url back to POST /library/photos.
+ */
+router.get("/library/photos/signature", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    if (!isCloudinaryConfigured) {
+      res.status(503).json({ error: "Photo uploads are not configured on this server." });
+      return;
+    }
+    await connectDB();
+    const library = await LibraryModel.findOne({ ownerId: user.id }).lean();
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+
+    res.json(signUpload(`scholarshub/libraries/${String(library._id)}`));
+  } catch (err) {
+    console.error("[owner/photos signature]", err);
+    res.status(500).json({ error: "Failed to prepare the upload." });
+  }
+});
+
 router.post("/library/photos", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
-    await connectDB();
     const { url, isCover = false } = req.body as { url?: string; isCover?: boolean };
     if (!url) { res.status(400).json({ error: "url is required" }); return; }
+    // The client used to be able to name any URL on any host, and next.config
+    // rendered it. Only what our own Cloudinary account handed back is stored.
+    if (!isCloudinaryUrl(url)) {
+      res.status(400).json({
+        error: "Photos must be uploaded through the dashboard. Only images hosted on this platform's Cloudinary account are accepted.",
+      });
+      return;
+    }
+    await connectDB();
     const library = await LibraryModel.findOne({ ownerId: user.id });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     await LibraryModel.findByIdAndUpdate(library._id, { $push: { photos: { url, isCover, order: library.photos.length } } });
