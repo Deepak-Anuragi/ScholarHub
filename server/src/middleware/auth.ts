@@ -34,3 +34,24 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   }
   next();
 }
+
+/**
+ * Owner-only routes. Admins are allowed through so support can act on an
+ * owner's behalf — this matches what the owner dashboard layout already does
+ * on the frontend.
+ *
+ * Most /owner handlers scope their queries by { ownerId: session.id }, but
+ * that is not authorization on its own: POST /owner/library creates a row
+ * rather than querying one, so without this guard any signed-in student could
+ * make themselves an owner.
+ */
+export function requireOwner(req: Request, res: Response, next: NextFunction): void {
+  if (
+    !req.sessionUser ||
+    (req.sessionUser.role !== "owner" && req.sessionUser.role !== "admin")
+  ) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  next();
+}

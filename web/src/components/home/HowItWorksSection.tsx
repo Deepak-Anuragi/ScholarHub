@@ -2,7 +2,7 @@
 
 import { BookMarked, MapPin, Search } from "lucide-react";
 
-import AnimatedContent from "@/components/AnimatedContent/AnimatedContent";
+import AnimatedContent from "@/components/AnimatedContent";
 
 const steps = [
   {

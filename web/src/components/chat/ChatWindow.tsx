@@ -373,7 +373,7 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
               ) : messages.length === 0 ? (
                 <div className="flex h-full flex-col items-center justify-center text-center text-xs text-forest-900/40">
                   <MessageSquare className="size-8 text-forest-900/20 mb-2" />
-                  No messages in this chat yet. Say hi! 👋
+                  No messages in this chat yet. Say hi!
                 </div>
               ) : (
                 messages.map((m) => {

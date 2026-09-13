@@ -2,7 +2,7 @@ import Link from "next/link";
 import { BookOpen } from "lucide-react";
 import type { ReactNode } from "react";
 
-import GradientText from "@/components/GradientText/GradientText";
+import GradientText from "@/components/GradientText";
 
 const quickLinks = [
   { label: "Home", href: "/" },

@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 import { Search } from "lucide-react";
 
-import Aurora from "@/components/Aurora/Aurora";
-import BlurText from "@/components/BlurText/BlurText";
-import TextType from "@/components/TextType/TextType";
+import Aurora from "@/components/Aurora";
+import BlurText from "@/components/BlurText";
+import TextType from "@/components/TextType";
 import { Button } from "@/components/ui/button";
 
 const CITIES = ["Bhopal", "Indore", "Jabalpur", "Gwalior" , "Ujjain", "Satna", "Rewa", "Narsimhapur", "Ratlam", "Morena", "Shivpuri", "Chhindwara", "Dewas", "Mandla", "Balaghat", "Sehore", "Sidhi", "Hoshangabad", "Barwani", "Burhanpur", "Jhabua", "Mandla", "Narsimhapur", "Ratlam", "Rewa", "Shivpuri", "Ujjain", "Vidisha"];

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Download, X } from "lucide-react";
+import { BookOpen, Download, X } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 
@@ -34,7 +34,9 @@ export function InstallAppBanner() {
 
   return (
     <div className="fixed inset-x-4 bottom-4 z-[60] mx-auto flex max-w-md items-center gap-3 rounded-2xl border border-line bg-white p-4 shadow-lift dark:bg-background">
-      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#16a34a]/10 text-xl" aria-hidden="true">📚</span>
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[#16a34a]/10" aria-hidden="true">
+        <BookOpen className="size-5 text-[#16a34a]" />
+      </span>
       <p className="min-w-0 flex-1 text-sm font-semibold text-forest-900 dark:text-foreground">
         Install Scholar&apos;s Hub for quick access
       </p>

@@ -20,7 +20,9 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const id = new mongoose.Types.ObjectId(user.id);
 
-    const [totalBookings, spentAgg, reviewCount, courseCount, notifications] = await Promise.all([
+    const [activeBookings, spentAgg, reviewCount, courseCount, notifications] = await Promise.all([
+      // Bookings still running. Named for what it counts: the dashboard card
+      // labelled "Active Bookings" reads it, and the old name said otherwise.
       BookingModel.countDocuments({ studentId: id, status: "ACTIVE" }),
       BookingModel.aggregate([{ $match: { studentId: id, paymentStatus: "SUCCESS" } }, { $group: { _id: null, total: { $sum: "$amountPaid" } } }]),
       ReviewModel.countDocuments({ studentId: id }),
@@ -28,7 +30,7 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
       NotificationModel.find({ userId: id }).sort({ createdAt: -1 }).limit(5).lean(),
     ]);
 
-    res.json({ totalBookings, totalSpent: spentAgg[0]?.total ?? 0, reviewCount, courseCount, notifications });
+    res.json({ activeBookings, totalSpent: spentAgg[0]?.total ?? 0, reviewCount, courseCount, notifications });
   } catch (err) {
     console.error("[student/stats]", err);
     res.status(500).json({ error: "Failed to fetch stats." });

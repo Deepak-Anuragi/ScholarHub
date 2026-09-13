@@ -11,6 +11,11 @@ export interface IBooking extends Document {
   startDate: Date;
   endDate: Date;
   plan: BookingPlan;
+  /** The library's own fee for the plan. Paid out to the owner in full. */
+  libraryFee?: number;
+  /** Platform commission charged on top of it. */
+  platformFee?: number;
+  /** libraryFee + platformFee — what the student is charged. */
   amountPaid: number;
   paymentStatus: PaymentStatus;
   paymentId?: string;
@@ -28,6 +33,8 @@ const BookingSchema = new Schema<IBooking>(
     startDate:       { type: Date, required: true },
     endDate:         { type: Date, required: true },
     plan:            { type: String, enum: ["MONTHLY", "QUARTERLY", "ANNUAL"], required: true },
+    libraryFee:      { type: Number },
+    platformFee:     { type: Number },
     amountPaid:      { type: Number, required: true },
     paymentStatus:   { type: String, enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"], default: "PENDING" },
     paymentId:       { type: String },

@@ -14,7 +14,7 @@ export interface IDigitalID extends Document {
 
 const DigitalIDSchema = new Schema<IDigitalID>(
   {
-    bookingId:  { type: Schema.Types.ObjectId, ref: "Booking", required: true, unique: true },
+    bookingId:  { type: Schema.Types.ObjectId, ref: "Booking", required: true },
     studentId:  { type: Schema.Types.ObjectId, ref: "User", required: true },
     libraryId:  { type: Schema.Types.ObjectId, ref: "Library", required: true },
     qrCodeUrl:  { type: String },

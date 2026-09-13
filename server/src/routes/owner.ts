@@ -2,19 +2,77 @@ import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
+import { isCloudinaryConfigured, isCloudinaryUrl, signUpload } from "../lib/cloudinary";
+import { notifyWaitlist } from "../lib/waitlist";
 import LibraryModel from "../models/Library";
 import BookingModel from "../models/Booking";
 import ReviewModel from "../models/Review";
 import SlotModel from "../models/Slot";
-import WaitlistModel from "../models/Waitlist";
-import NotificationModel from "../models/Notification";
 import PayoutLedgerModel from "../models/PayoutLedger";
-import { sendSeatAlertEmail } from "../lib/email";
-import { emitNotificationCount } from "../lib/notifications";
-import { requireAuth } from "../middleware/auth";
+import { requireAuth, requireOwner } from "../middleware/auth";
 
 const router = Router();
 router.use(requireAuth);
+router.use(requireOwner);
+
+/**
+ * Fields an owner is allowed to change on their own library.
+ *
+ * Deliberately excludes isVerified, isActive, ratingAvg, reviewCount,
+ * availableSeats and ownerId: those are set by admin review, by the rating
+ * aggregate, or by the booking flow. Spreading req.body would let an owner
+ * self-verify and bypass admin approval entirely.
+ */
+const EDITABLE_LIBRARY_FIELDS = [
+  "name",
+  "description",
+  "address",
+  "city",
+  "state",
+  "district",
+  "pincode",
+  "contactPhone",
+  "contactEmail",
+  "whatsapp",
+  "monthlyFee",
+  "quarterlyFee",
+  "annualFee",
+  "facilities",
+  "studentTypes",
+  "totalSeats",
+  "openTime",
+  "closeTime",
+  "lat",
+  "lng",
+] as const;
+
+/** Slot fields an owner may change. libraryId is deliberately absent. */
+const EDITABLE_SLOT_FIELDS = [
+  "name",
+  "startTime",
+  "endTime",
+  "totalSeats",
+  "availableSeats",
+] as const;
+
+function pick(
+  body: Record<string, unknown>,
+  allowed: readonly string[]
+): Record<string, unknown> {
+  const picked: Record<string, unknown> = {};
+  for (const key of allowed) {
+    if (body[key] !== undefined) picked[key] = body[key];
+  }
+  return picked;
+}
+
+function pickEditable(body: Record<string, unknown>): Record<string, unknown> {
+  return pick(body, EDITABLE_LIBRARY_FIELDS);
+}
+
+function pickSlotFields(body: Record<string, unknown>): Record<string, unknown> {
+  return pick(body, EDITABLE_SLOT_FIELDS);
+}
 
 function withLocation(body: Record<string, unknown>): Record<string, unknown> {
   const lat = Number(body.lat);
@@ -74,7 +132,7 @@ router.patch("/library", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
     await connectDB();
-    const library = await LibraryModel.findOneAndUpdate({ ownerId: user.id }, { $set: withLocation(req.body) }, { new: true, runValidators: true });
+    const library = await LibraryModel.findOneAndUpdate({ ownerId: user.id }, { $set: withLocation(pickEditable(req.body)) }, { new: true, runValidators: true });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     res.json({ library });
   } catch (err) {
@@ -89,7 +147,7 @@ router.post("/library", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const existing = await LibraryModel.findOne({ ownerId: user.id });
     if (existing) { res.status(409).json({ error: "You already have a library. Edit it instead." }); return; }
-    const library = await LibraryModel.create({ ...withLocation(req.body), ownerId: user.id });
+    const library = await LibraryModel.create({ ...withLocation(pickEditable(req.body)), ownerId: user.id });
     res.status(201).json({ library });
   } catch (err) {
     console.error("[owner/library POST]", err);
@@ -98,12 +156,44 @@ router.post("/library", async (req: Request, res: Response): Promise<void> => {
 });
 
 // ─── LIBRARY PHOTOS ───────────────────────────────────────────────────────
+
+/**
+ * A short-lived upload signature scoped to this owner's own library folder.
+ * The browser uploads straight to Cloudinary with it, then posts the returned
+ * secure_url back to POST /library/photos.
+ */
+router.get("/library/photos/signature", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    if (!isCloudinaryConfigured) {
+      res.status(503).json({ error: "Photo uploads are not configured on this server." });
+      return;
+    }
+    await connectDB();
+    const library = await LibraryModel.findOne({ ownerId: user.id }).lean();
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+
+    res.json(signUpload(`scholarshub/libraries/${String(library._id)}`));
+  } catch (err) {
+    console.error("[owner/photos signature]", err);
+    res.status(500).json({ error: "Failed to prepare the upload." });
+  }
+});
+
 router.post("/library/photos", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
-    await connectDB();
     const { url, isCover = false } = req.body as { url?: string; isCover?: boolean };
     if (!url) { res.status(400).json({ error: "url is required" }); return; }
+    // The client used to be able to name any URL on any host, and next.config
+    // rendered it. Only what our own Cloudinary account handed back is stored.
+    if (!isCloudinaryUrl(url)) {
+      res.status(400).json({
+        error: "Photos must be uploaded through the dashboard. Only images hosted on this platform's Cloudinary account are accepted.",
+      });
+      return;
+    }
+    await connectDB();
     const library = await LibraryModel.findOne({ ownerId: user.id });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
     await LibraryModel.findByIdAndUpdate(library._id, { $push: { photos: { url, isCover, order: library.photos.length } } });
@@ -266,51 +356,25 @@ router.patch("/slots/:id", async (req: Request, res: Response): Promise<void> =>
     const prevSlot = await SlotModel.findOne({ _id: req.params.id, libraryId: library._id });
     if (!prevSlot) { res.status(404).json({ error: "Slot not found." }); return; }
 
-    const updatedSlot = await SlotModel.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true, runValidators: true });
+    // Whitelisted so libraryId cannot be reassigned — the ownership check above
+    // proves the slot is theirs today, not that they may move it elsewhere.
+    // availableSeats stays editable: raising it is what triggers the waitlist.
+    const updatedSlot = await SlotModel.findByIdAndUpdate(
+      req.params.id,
+      { $set: pickSlotFields(req.body) },
+      { new: true, runValidators: true }
+    );
 
+    // Raising the seat count is what frees a seat by hand; the nightly expiry
+    // job frees them on its own. Both go through the same notifier.
     const freed = (updatedSlot?.availableSeats ?? 0) - prevSlot.availableSeats;
     if (freed > 0) {
-      const waiting = await WaitlistModel.find({ slotId: req.params.id })
-        .sort({ position: 1 })
-        .limit(freed)
-        .populate("studentId", "name email phone fcmToken");
-
-      for (const entry of waiting) {
-        const student = entry.studentId as {
-          _id: mongoose.Types.ObjectId;
-          name?: string;
-          email?: string;
-        };
-
-        await NotificationModel.create({
-          userId: student._id,
-          type: "SEAT_ALERT",
-          title: "Seat Available!",
-          message: `A seat opened at ${library.name}. You have 2 hrs to book.`,
-          link: `/library/${entry.libraryId}`,
-          isRead: false,
-        });
-
-        if (student.email) {
-          try {
-            await sendSeatAlertEmail(
-              student.email,
-              student.name ?? "Student",
-              library.name,
-              `/library/${entry.libraryId}`
-            );
-          } catch (emailErr) {
-            console.error("[owner/slots PATCH] seat alert email failed:", emailErr);
-          }
-        }
-
-        await WaitlistModel.findByIdAndUpdate(entry._id, {
-          notified: true,
-          heldUntil: new Date(Date.now() + 2 * 60 * 60 * 1000),
-        });
-
-        await emitNotificationCount(String(student._id));
-      }
+      await notifyWaitlist({
+        libraryId: library._id as mongoose.Types.ObjectId,
+        libraryName: library.name,
+        slotId: req.params.id,
+        seats: freed,
+      });
     }
 
     res.json({ slot: updatedSlot });

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { BookOpen } from "lucide-react";
 
-import Aurora from "@/components/Aurora/Aurora";
+import Aurora from "@/components/Aurora";
 import { Button } from "@/components/ui/button";
 
 export default function NotFound() {

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Building2, GraduationCap } from "lucide-react";
 
 export default function SignupPage() {
   return (
@@ -18,7 +19,12 @@ export default function SignupPage() {
       <div className="grid gap-4 sm:grid-cols-2">
         {/* Student */}
         <div className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 transition hover:shadow-soft">
-          <span className="text-3xl" aria-hidden>🎓</span>
+          <span
+            className="grid size-12 place-items-center rounded-xl bg-[#16a34a]/10"
+            aria-hidden
+          >
+            <GraduationCap className="size-6 text-[#16a34a]" />
+          </span>
           <div>
             <h3 className="font-semibold text-forest-900">I&apos;m a Student</h3>
             <p className="mt-1 text-sm text-forest-900/60">
@@ -36,7 +42,12 @@ export default function SignupPage() {
 
         {/* Library Owner */}
         <div className="flex flex-col gap-4 rounded-2xl border border-line bg-white p-5 transition hover:shadow-soft">
-          <span className="text-3xl" aria-hidden>🏛️</span>
+          <span
+            className="grid size-12 place-items-center rounded-xl bg-forest-700/10"
+            aria-hidden
+          >
+            <Building2 className="size-6 text-forest-700" />
+          </span>
           <div>
             <h3 className="font-semibold text-forest-900">I Own a Library</h3>
             <p className="mt-1 text-sm text-forest-900/60">

@@ -117,6 +117,10 @@ export function DigitalIDCard({
                 height={64}
                 className="size-16 rounded-full border-2 border-[#16a34a] object-cover"
                 loading="lazy"
+                // A free-text URL the student typed, so it is served as-is
+                // rather than through the optimizer, which only accepts our
+                // own host.
+                unoptimized
               />
             ) : (
               <div className="flex size-16 items-center justify-center rounded-full border-2 border-[#16a34a] bg-[#16a34a]/10 text-xl font-bold text-[#16a34a]">

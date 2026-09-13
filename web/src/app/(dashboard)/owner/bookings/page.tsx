@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Search } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 type Booking = {
@@ -34,15 +36,25 @@ function fmt(d: string) {
 export default function OwnerBookingsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
 
-  useEffect(() => {
-    fetch("/api/owner/bookings", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { bookings?: Booking[] }) => setBookings(d.bookings ?? []))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ bookings?: Booking[] }>("/owner/bookings")
+      .then((d) => setBookings(d.bookings ?? []))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const filtered = bookings.filter((b) => {
     const matchQ =
@@ -101,7 +113,9 @@ export default function OwnerBookingsPage() {
 
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.08}>
         <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-          {loading ? (
+          {error ? (
+            <DataError message={error} onRetry={load} />
+          ) : loading ? (
             <div className="space-y-2 p-4">
               {[1, 2, 3, 4].map((i) => (
                 <div key={i} className="h-12 animate-pulse rounded-xl bg-sage-100" />

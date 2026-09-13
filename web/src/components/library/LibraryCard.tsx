@@ -4,7 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Star } from "lucide-react";
 
-import TiltedCard from "@/components/TiltedCard/TiltedCard";
+import TiltedCard from "@/components/TiltedCard";
 import { Button } from "@/components/ui/button";
 import { getFacilityIcon } from "@/lib/facility-icons";
 import type { LibraryItem } from "@/lib/libraries-query";

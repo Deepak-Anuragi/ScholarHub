@@ -20,7 +20,7 @@ export default async function StudentLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-sand-100">
+    <div className="flex min-h-[calc(100vh-var(--header-height))] bg-sand-100">
       <StudentSidebar />
       {/* main content — add bottom padding on mobile for the bottom nav */}
       <main className="flex-1 overflow-x-hidden pb-20 lg:pb-0">

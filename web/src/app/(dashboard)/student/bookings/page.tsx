@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookMarked, Clock, X } from "lucide-react";
+import { BookMarked, Clock } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
 import { useAuth } from "@/components/providers/auth-provider";
+import { Modal } from "@/components/ui/modal";
 import { cn } from "@/lib/utils";
 
 import { api } from "@/lib/api";
@@ -195,37 +196,29 @@ export default function BookingsPage() {
 
       {/* Digital ID modal */}
       {idModal && user && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-forest-900/50 backdrop-blur-sm p-4"
-          onClick={() => setIdModal(null)}
+        <Modal
+          open
+          onOpenChange={(next) => {
+            if (!next) setIdModal(null);
+          }}
+          title="Student Digital ID"
+          showTitle={false}
+          className="max-w-sm bg-transparent p-0 shadow-none"
         >
-          <div
-            className="relative"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={() => setIdModal(null)}
-              className="absolute -right-3 -top-3 z-10 flex size-8 items-center justify-center rounded-full bg-white shadow-md"
-              aria-label="Close"
-            >
-              <X className="size-4 text-forest-900" />
-            </button>
-            <DigitalIDCard
-              bookingId={idModal._id}
-              studentId={user.id}
-              studentName={user.name}
-              studentEmail={user.email}
-              avatarUrl={user.avatarUrl}
-              libraryName={idModal.libraryId.name}
-              libraryId={idModal.libraryId._id}
-              slotName={idModal.slotId?.name}
-              plan={idModal.plan}
-              startDate={idModal.startDate}
-              endDate={idModal.endDate}
-            />
-          </div>
-        </div>
+          <DigitalIDCard
+            bookingId={idModal._id}
+            studentId={user.id}
+            studentName={user.name}
+            studentEmail={user.email}
+            avatarUrl={user.avatarUrl}
+            libraryName={idModal.libraryId.name}
+            libraryId={idModal.libraryId._id}
+            slotName={idModal.slotId?.name}
+            plan={idModal.plan}
+            startDate={idModal.startDate}
+            endDate={idModal.endDate}
+          />
+        </Modal>
       )}
     </>
   );

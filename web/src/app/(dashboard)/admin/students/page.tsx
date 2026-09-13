@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useReactTable, getCoreRowModel, getFilteredRowModel,
   getSortedRowModel, flexRender, createColumnHelper,
@@ -9,6 +9,8 @@ import {
 import { ChevronsUpDown, Download, Loader2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
+import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { downloadCSV } from "@/lib/csv";
 
@@ -29,18 +31,28 @@ const helper = createColumnHelper<Student>();
 export default function AdminStudentsPage() {
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [sorting, setSorting] = useState<SortingState>([]);
   const [globalFilter, setGlobalFilter] = useState("");
   const [cityFilter, setCityFilter] = useState("all");
   const [examFilter, setExamFilter] = useState("all");
   const [bookingFilter, setBookingFilter] = useState("all");
 
-  useEffect(() => {
-    fetch("/api/admin/students", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { students?: Student[] }) => setStudents(d.students ?? []))
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ students?: Student[] }>("/admin/students")
+      .then((d) => setStudents(d.students ?? []))
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const examTypes = useMemo(() => {
     const types = new Set(students.map((s) => s.examType).filter(Boolean) as string[]);
@@ -178,7 +190,9 @@ export default function AdminStudentsPage() {
 
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.08}>
         <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-          {loading ? (
+          {error ? (
+            <DataError message={error} onRetry={load} />
+          ) : loading ? (
             <div className="flex h-52 items-center justify-center">
               <Loader2 className="size-5 animate-spin text-forest-900/40" />
             </div>

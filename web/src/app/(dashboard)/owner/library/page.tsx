@@ -3,10 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
-import { ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
+import { DataError } from "@/components/dashboard/DataError";
 import { Button } from "@/components/ui/button";
+import { api } from "@/lib/api";
 import { getFacilityIcon } from "@/lib/facility-icons";
 import { cn } from "@/lib/utils";
 
@@ -17,6 +19,15 @@ const ALL_FACILITIES = [
 const ALL_STUDENT_TYPES = ["Govt Exam","Entrance Exam","School","Professional"];
 
 type Photo = { url: string; isCover: boolean; order: number };
+
+/** What GET /owner/library/photos/signature returns. */
+type UploadSignature = {
+  uploadUrl: string;
+  apiKey: string;
+  timestamp: number;
+  signature: string;
+  folder: string;
+};
 type Library = {
   _id: string;
   name: string;
@@ -85,17 +96,29 @@ export default function OwnerLibraryPage() {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<Partial<Library>>({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    fetch("/api/owner/library", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { library: Library | null }) => {
+  const load = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    api
+      .get<{ library: Library | null }>("/owner/library")
+      .then((d) => {
         if (d.library) {
           setLib(d.library);
           setForm(d.library);
         }
-      });
+      })
+      .catch((err: unknown) =>
+        setError(err instanceof Error ? err.message : "Something went wrong.")
+      )
+      .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
 
   const set = (name: string, val: string) => {
     setForm((prev) => ({ ...prev, [name]: val }));
@@ -113,59 +136,60 @@ export default function OwnerLibraryPage() {
 
   const handleSave = async () => {
     setSaving(true);
-    const res = await fetch("/api/owner/library", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify(form),
-    });
-    const d = (await res.json()) as { library?: Library };
-    if (d.library) {
-      setLib(d.library);
-      setForm(d.library);
+    setError(null);
+    try {
+      const d = await api.patch<{ library?: Library }>("/owner/library", form);
+      if (d.library) {
+        setLib(d.library);
+        setForm(d.library);
+      }
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not save your changes.");
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2500);
   };
 
-  // Photo upload via Dropzone → Cloudinary (or mock URL in dev)
+  // Dropzone → signed Cloudinary upload → our API.
+  // The signature is minted per upload by the server and pins the folder, so
+  // the browser never carries an upload preset or a credential of its own.
   const onDrop = useCallback(
     async (files: File[]) => {
       if (!files[0]) return;
       setUploading(true);
+      setError(null);
       try {
-        // If Cloudinary is not configured, use a placeholder URL
-        const cloudName = process.env.NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-        let url: string;
+        const sig = await api.get<UploadSignature>("/owner/library/photos/signature");
 
-        if (cloudName) {
-          const fd = new FormData();
-          fd.append("file", files[0]);
-          fd.append("upload_preset", "scholarshub");
-          const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
-            { method: "POST", body: fd }
-          );
-          const data = (await res.json()) as { secure_url: string };
-          url = data.secure_url;
-        } else {
-          // Dev fallback — use a picsum placeholder
-          url = `https://picsum.photos/seed/${Date.now()}/800/600`;
+        const fd = new FormData();
+        fd.append("file", files[0]);
+        fd.append("api_key", sig.apiKey);
+        fd.append("timestamp", String(sig.timestamp));
+        fd.append("folder", sig.folder);
+        fd.append("signature", sig.signature);
+
+        // Cloudinary is a third-party host, so this one stays a plain fetch.
+        const res = await fetch(sig.uploadUrl, { method: "POST", body: fd });
+        const data = (await res.json().catch(() => ({}))) as {
+          secure_url?: string;
+          error?: { message?: string };
+        };
+        if (!res.ok || !data.secure_url) {
+          throw new Error(data.error?.message ?? "Cloudinary rejected the upload.");
         }
+        const url = data.secure_url;
 
-        await fetch("/api/owner/library/photos", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({ url }),
-        });
+        await api.post("/owner/library/photos", { url });
 
         setLib((prev) =>
           prev
             ? { ...prev, photos: [...prev.photos, { url, isCover: false, order: prev.photos.length }] }
             : prev
         );
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Could not upload the photo.");
       } finally {
         setUploading(false);
       }
@@ -181,32 +205,40 @@ export default function OwnerLibraryPage() {
   });
 
   const deletePhoto = async (url: string) => {
-    await fetch("/api/owner/library/photos", {
-      method: "DELETE",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ url }),
-    });
-    setLib((prev) =>
-      prev ? { ...prev, photos: prev.photos.filter((p) => p.url !== url) } : prev
-    );
+    setError(null);
+    try {
+      await api.delete("/owner/library/photos", { body: JSON.stringify({ url }) });
+      setLib((prev) =>
+        prev ? { ...prev, photos: prev.photos.filter((p) => p.url !== url) } : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete the photo.");
+    }
   };
 
   const setCover = async (url: string) => {
-    await fetch("/api/owner/library/photos", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      credentials: "include",
-      body: JSON.stringify({ coverUrl: url }),
-    });
-    setLib((prev) =>
-      prev
-        ? { ...prev, photos: prev.photos.map((p) => ({ ...p, isCover: p.url === url })) }
-        : prev
-    );
+    setError(null);
+    try {
+      await api.patch("/owner/library/photos", { coverUrl: url });
+      setLib((prev) =>
+        prev
+          ? { ...prev, photos: prev.photos.map((p) => ({ ...p, isCover: p.url === url })) }
+          : prev
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not set the cover photo.");
+    }
   };
 
-  if (!lib) {
+  if (error && !lib) {
+    return (
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <DataError message={error} onRetry={load} />
+      </div>
+    );
+  }
+
+  if (loading) {
     return (
       <div className="flex min-h-64 items-center justify-center px-4 py-6">
         <Loader2 className="size-6 animate-spin text-forest-900/40" />
@@ -214,8 +246,28 @@ export default function OwnerLibraryPage() {
     );
   }
 
+  if (!lib) {
+    return (
+      <div className="px-4 py-6 sm:px-6 lg:px-8">
+        <div className="rounded-card border border-dashed border-line bg-white/60 px-6 py-12 text-center">
+          <p className="text-sm font-semibold text-forest-900">
+            No library on your account yet
+          </p>
+          <p className="mt-1 text-sm text-forest-900/50">
+            Create one to start listing seats and taking bookings.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="px-4 py-6 sm:px-6 lg:px-8">
+      {error && (
+        <div className="mb-4">
+          <DataError message={error} />
+        </div>
+      )}
       <AnimatedContent distance={20} duration={0.45} threshold={0}>
         <div className="mb-6 flex items-center justify-between">
           <div>
@@ -231,7 +283,7 @@ export default function OwnerLibraryPage() {
             disabled={saving}
             className="bg-forest-700 text-white hover:bg-forest-900"
           >
-            {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? "✓ Saved!" : "Save Changes"}
+            {saving ? <Loader2 className="size-4 animate-spin" /> : saved ? <><Check className="size-4" aria-hidden />Saved!</> : "Save Changes"}
           </Button>
         </div>
       </AnimatedContent>

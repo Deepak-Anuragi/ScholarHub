@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, User, Camera, Building2 } from "lucide-react";
+import { Check, Loader2, User, Camera, Building2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { useAuth } from "@/components/providers/auth-provider";
@@ -300,7 +300,10 @@ export default function ProfilePage() {
                 {saving ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : saved ? (
-                  "✓ Saved!"
+                  <>
+                    <Check className="size-4" aria-hidden />
+                    Saved!
+                  </>
                 ) : (
                   <>
                     <User className="size-4" />

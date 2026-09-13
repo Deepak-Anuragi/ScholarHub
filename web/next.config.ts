@@ -5,7 +5,11 @@ const API_SERVER =
 
 const nextConfig: NextConfig = {
   images: {
-    remotePatterns: [{ protocol: "https", hostname: "**" }],
+    // Only our own upload host. "**" let any URL stored in the database turn
+    // the optimizer into an open image proxy for arbitrary remote content.
+    // Images from free-text URLs (student avatars, course thumbnails) are
+    // rendered with `unoptimized` instead of being allowed through here.
+    remotePatterns: [{ protocol: "https", hostname: "res.cloudinary.com" }],
   },
   // Allow HMR (hot-reload) connections from any local network IP.
   // This is needed when accessing the dev server from another device
