@@ -34,7 +34,7 @@ export function CountUp({
           observer.disconnect();
         }
       },
-      { threshold: 0.35 }
+      { threshold: 0.01 }
     );
 
     observer.observe(el);

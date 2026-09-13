@@ -22,6 +22,7 @@ import { Server, Socket } from "socket.io";
 import { decodeSession, AuthUser } from "./lib/auth";
 import connectDB from "./lib/mongodb";
 import MessageModel from "./models/Message";
+import { seedAdmin } from "./scripts/seedAdmin";
 
 const app = express();
 const server = http.createServer(app);
@@ -199,6 +200,9 @@ server.listen(PORT, () => {
   console.log(`   Listening at  http://localhost:${PORT}`);
   console.log(`   Allowed origins: ${allowedOrigins.join(", ")}`);
   console.log(`   Environment   ${process.env.NODE_ENV ?? "development"}\n`);
+
+  // Ensure default Admin account exists on startup
+  void seedAdmin();
 });
 
 export default app;
