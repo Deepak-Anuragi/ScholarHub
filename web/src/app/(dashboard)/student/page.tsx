@@ -115,14 +115,14 @@ function ActiveBookingCard({
         <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
           Active Booking
         </p>
-        <p className="mt-1 font-display text-xl text-white">
+        <p className="mt-1 break-words font-display text-xl text-white">
           {booking.libraryId.name}
         </p>
         <p className="text-sm text-white/70">{booking.libraryId.city}</p>
       </div>
 
       <div className="grid gap-4 p-6 sm:grid-cols-2">
-        <div className="space-y-3">
+        <div className="min-w-0 space-y-3">
           {booking.slotId && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-wide text-forest-900/50">
@@ -161,7 +161,7 @@ function ActiveBookingCard({
           </div>
         </div>
 
-        <div className="flex flex-col justify-between">
+        <div className="min-w-0 flex flex-col justify-between">
           <div>
             <div className="flex items-end justify-between text-sm">
               <span className="font-semibold text-forest-900">
@@ -224,7 +224,7 @@ function StatCard({
   return (
     <Link
       href={href}
-      className="group rounded-card border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
+      className="group block h-full min-w-0 rounded-card border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
     >
       <div className="flex items-start justify-between">
         <div className="flex size-10 items-center justify-center rounded-2xl bg-[#16a34a]/10">
@@ -392,8 +392,8 @@ export default function StudentOverviewPage() {
                       : "border-[#16a34a]/20 bg-[#16a34a]/5 text-forest-900"
                   )}
                 >
-                  <p className="font-semibold">{n.title}</p>
-                  <p className="mt-0.5 text-xs">{n.message}</p>
+                  <p className="break-words font-semibold">{n.title}</p>
+                  <p className="mt-0.5 break-words text-xs">{n.message}</p>
                   <p className="mt-1 text-[10px] text-forest-900/40">
                     <CalendarDays className="mr-1 inline size-3" />
                     {new Date(n.createdAt).toLocaleDateString("en-IN")}

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ChevronDown } from "lucide-react";
 
 import { HeroSection } from "@/components/home/HeroSection";
 import { HowItWorksSection } from "@/components/home/HowItWorksSection";
@@ -58,6 +59,39 @@ export default function Home() {
       role: "Library Owner, Indore",
       quote:
         "My occupancy is higher and the waitlist alerts keep me updated automatically.",
+    },
+  ];
+
+  const faqs = [
+    {
+      question: "How do I find a library near me?",
+      answer:
+        "Enter your city on the homepage, choose your exam type, and select Search. You can then compare libraries by seats, fees, facilities, and availability.",
+    },
+    {
+      question: "Can I see how many seats are available before booking?",
+      answer:
+        "Yes. Each listing shows its current seat availability, so you can choose a library and shift that works for you before reserving.",
+    },
+    {
+      question: "How does library booking work?",
+      answer:
+        "Open a library listing, select a plan and start date, then complete the booking and payment steps. Your confirmed booking will appear in your dashboard.",
+    },
+    {
+      question: "Can I cancel my booking?",
+      answer:
+        "Cancellation depends on the library's policy and the booking status. Open your booking from the dashboard to see the available action and refund details.",
+    },
+    {
+      question: "How can I list my library?",
+      answer:
+        "Choose List Your Library or Add Library in the footer, create an owner account, and submit your library details for verification.",
+    },
+    {
+      question: "Is online payment secure?",
+      answer:
+        "Payments are processed through the secure checkout flow. Your booking is confirmed only after the payment provider reports a successful transaction.",
     },
   ];
 
@@ -243,6 +277,44 @@ export default function Home() {
                   <p className="text-sm text-forest-900/70">{item.role}</p>
                 </figcaption>
               </figure>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="faqs" className="scroll-mt-24 bg-sand-100 py-16 sm:py-20">
+        <div className="mx-auto w-full max-w-3xl px-4 sm:px-6">
+          <div className="text-center">
+            <p className="text-sm font-semibold uppercase tracking-wide text-forest-900/70">
+              FAQs
+            </p>
+            <h2 className="mt-2 font-display text-3xl text-forest-900 sm:text-4xl">
+              Answers before you book
+            </h2>
+            <p className="mx-auto mt-3 max-w-xl text-sm text-forest-900/70 sm:text-base">
+              Everything you need to know about finding, comparing, and booking
+              your next study space.
+            </p>
+          </div>
+
+          <div className="mt-10 space-y-3">
+            {faqs.map((faq, index) => (
+              <details
+                key={faq.question}
+                open={index === 0}
+                className="group rounded-card border border-line bg-white/85 shadow-soft"
+              >
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left font-semibold text-forest-900 marker:hidden [&::-webkit-details-marker]:hidden sm:px-6 sm:py-5">
+                  {faq.question}
+                  <ChevronDown
+                    className="size-5 shrink-0 text-forest-700 transition-transform duration-200 group-open:rotate-180"
+                    aria-hidden
+                  />
+                </summary>
+                <p className="border-t border-line px-5 pb-5 pt-4 text-sm leading-6 text-forest-900/70 sm:px-6">
+                  {faq.answer}
+                </p>
+              </details>
             ))}
           </div>
         </div>

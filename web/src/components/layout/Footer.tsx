@@ -15,7 +15,7 @@ const quickLinks = [
 
 const studentLinks = [
   { label: "How it works", href: "/#how-it-works" },
-  { label: "FAQs", href: "/faqs" },
+  { label: "FAQs", href: "/#faqs" },
   { label: "Support", href: "/support" },
 ];
 
