@@ -44,6 +44,9 @@ export function isAllowedOrigin(origin: string | undefined): boolean {
 export function createApp(): Express {
   const app = express();
 
+  // Trust first proxy for reverse proxies (Render, Railway, Vercel, Heroku, Nginx)
+  app.set("trust proxy", 1);
+
   app.use(
     cors({
       origin: (origin, callback) => callback(null, isAllowedOrigin(origin)),

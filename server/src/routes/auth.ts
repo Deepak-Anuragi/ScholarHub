@@ -63,10 +63,12 @@ function toSessionRole(dbRole: string): AuthUser["role"] {
 
 function setSessionCookie(res: Response, user: AuthUser) {
   const token = encodeSession(user);
+  const isProd = process.env.NODE_ENV === "production";
+  const sameSiteMode = isProd && process.env.CROSS_SITE_COOKIES === "true" ? "none" : "lax";
   res.cookie(SESSION_COOKIE, token, {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: sameSiteMode,
+    secure: isProd,
     path: "/",
     // Tied to the token's own expiry so the two can never drift apart.
     maxAge: sessionMaxAgeMs(token),
@@ -385,10 +387,12 @@ router.post("/login", async (req: Request, res: Response): Promise<void> => {
 
 // ── POST /api/auth/logout ──────────────────────────────────────────────────
 router.post("/logout", (_req: Request, res: Response): void => {
+  const isProd = process.env.NODE_ENV === "production";
+  const sameSiteMode = isProd && process.env.CROSS_SITE_COOKIES === "true" ? "none" : "lax";
   res.cookie(SESSION_COOKIE, "", {
     httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    sameSite: sameSiteMode,
+    secure: isProd,
     path: "/",
     maxAge: 0,
   });
