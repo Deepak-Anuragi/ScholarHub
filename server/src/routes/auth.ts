@@ -1,5 +1,6 @@
 import { Router, Request, Response } from "express";
 import bcryptjs from "bcryptjs";
+import crypto from "crypto";
 import { z } from "zod";
 
 import connectDB from "../lib/mongodb";
@@ -420,12 +421,95 @@ router.get("/me", async (req: Request, res: Response): Promise<void> => {
 });
 
 // ── POST /api/auth/forgot-password ────────────────────────────────────────
-router.post("/forgot-password", (_req: Request, res: Response): void => {
-  // Placeholder — always returns success for security (prevents email enumeration)
-  res.json({
-    success: true,
-    message: "If an account exists with this email, a reset link will be sent.",
-  });
+router.post("/forgot-password", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const schema = z.object({ email: emailSchema });
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ success: false, errors: formatErrors(result.error) });
+      return;
+    }
+
+    const { email } = result.data;
+    await connectDB();
+
+    const user = await UserModel.findOne({ email });
+    if (user) {
+      const resetToken = crypto.randomBytes(32).toString("hex");
+      const hashedToken = crypto.createHash("sha256").update(resetToken).digest("hex");
+
+      user.resetPasswordToken = hashedToken;
+      user.resetPasswordExpires = new Date(Date.now() + 60 * 60 * 1000); // 1 hour
+      await user.save();
+
+      const clientUrl = (process.env.CLIENT_URL ?? "http://localhost:3000").split(",")[0].trim();
+      const resetUrl = `${clientUrl}/auth/reset-password?token=${resetToken}`;
+
+      console.log(`\n[auth] Password reset requested for ${email}`);
+      console.log(`[auth] Reset link: ${resetUrl}\n`);
+    }
+
+    res.json({
+      success: true,
+      message: "If an account exists with this email, a reset link will be sent.",
+    });
+  } catch (err) {
+    console.error("[forgot-password]", err);
+    res.status(500).json({
+      success: false,
+      errors: { general: ["Something went wrong. Please try again."] },
+    });
+  }
+});
+
+// ── POST /api/auth/reset-password ─────────────────────────────────────────
+router.post("/reset-password", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const schema = z.object({
+      token: z.string().min(1, "Reset token is required"),
+      password: passwordSchema,
+    });
+
+    const result = schema.safeParse(req.body);
+    if (!result.success) {
+      res.status(400).json({ success: false, errors: formatErrors(result.error) });
+      return;
+    }
+
+    const { token, password } = result.data;
+    const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
+
+    await connectDB();
+
+    const user = await UserModel.findOne({
+      resetPasswordToken: hashedToken,
+      resetPasswordExpires: { $gt: new Date() },
+    });
+
+    if (!user) {
+      res.status(400).json({
+        success: false,
+        errors: { general: ["Password reset token is invalid or has expired."] },
+      });
+      return;
+    }
+
+    user.passwordHash = await bcryptjs.hash(password, 12);
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpires = undefined;
+    await user.save();
+
+    res.json({
+      success: true,
+      message: "Password reset successful! You can now sign in with your new password.",
+    });
+  } catch (err) {
+    console.error("[reset-password]", err);
+    res.status(500).json({
+      success: false,
+      errors: { general: ["Something went wrong. Please try again."] },
+    });
+  }
 });
 
 export default router;
