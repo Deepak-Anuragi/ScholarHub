@@ -30,7 +30,15 @@ type EnrolledCourse = {
   completed: boolean;
 };
 
-const EXAM_TABS = ["All", "UPSC", "JEE", "NEET", "SSC", "Board"];
+const EXAM_TABS: { label: string; value: string }[] = [
+  { label: "All",     value: "all"     },
+  { label: "UPSC",    value: "UPSC"    },
+  { label: "JEE",     value: "JEE"     },
+  { label: "NEET",    value: "NEET"    },
+  { label: "SSC",     value: "SSC"     },
+  { label: "Banking", value: "BANKING" },
+  { label: "Board",   value: "BOARD"   },
+];
 
 function CourseCard({
   course,
@@ -138,7 +146,7 @@ function CourseCard({
 }
 
 export default function CoursesPage() {
-  const [tab, setTab] = useState("All");
+  const [tab, setTab] = useState<string>("all");
   const [courses, setCourses] = useState<Course[]>([]);
   const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
@@ -146,7 +154,7 @@ export default function CoursesPage() {
 
   useEffect(() => {
     setLoading(true);
-    const examType = tab === "All" ? "all" : tab;
+    const examType = tab;
     Promise.all([
       api.get<{ courses?: Course[] }>(`/courses?examType=${examType}`).catch(() => ({ courses: [] })),
       api.get<{ enrolled?: EnrolledCourse[] }>("/student/courses").catch(() => ({ enrolled: [] })),
@@ -198,19 +206,19 @@ export default function CoursesPage() {
       {/* Tabs */}
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.05}>
         <div className="mb-6 flex gap-2 overflow-x-auto pb-1">
-          {EXAM_TABS.map((t) => (
+          {EXAM_TABS.map(({ label, value }) => (
             <button
-              key={t}
+              key={value}
               type="button"
-              onClick={() => setTab(t)}
+              onClick={() => setTab(value)}
               className={cn(
                 "shrink-0 rounded-full px-4 py-1.5 text-sm font-semibold transition",
-                tab === t
+                tab === value
                   ? "bg-[#16a34a] text-white"
                   : "bg-white border border-line text-forest-900/70 hover:border-[#16a34a]/50"
               )}
             >
-              {t}
+              {label}
             </button>
           ))}
         </div>

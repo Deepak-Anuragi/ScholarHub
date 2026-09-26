@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import Link from "next/link";
@@ -22,6 +22,7 @@ const ROLES: { value: Role; label: string }[] = [
 
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { user, isLoading: authLoading, refresh } = useAuth();
 
   const [role, setRole]             = useState<Role>("student");
@@ -31,9 +32,10 @@ export default function LoginPage() {
   // Already logged in → go straight to their dashboard
   useEffect(() => {
     if (!authLoading && user) {
-      router.replace(getDashboardPath(user.role));
+      const redirectTo = searchParams.get('redirect');
+      router.replace(redirectTo || getDashboardPath(user.role));
     }
-  }, [authLoading, user, router]);
+  }, [authLoading, user, router, searchParams]);
 
   const {
     register,
@@ -73,7 +75,8 @@ export default function LoginPage() {
 
       // Refresh the auth context so the provider picks up the new cookie
       await refresh();
-      router.push(getDashboardPath(role));
+      const redirectTo = searchParams.get('redirect');
+      router.push(redirectTo || getDashboardPath(role));
       router.refresh();
     } catch {
       setServerError("Unable to connect. Please check your internet and try again.");

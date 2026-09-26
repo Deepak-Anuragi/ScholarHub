@@ -1,13 +1,14 @@
-"use client";
+﻿"use client";
 
 import { useState } from "react";
 import Image from "next/image";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { Check, MapPin, Phone, Mail, MessageCircle, Star, Users, Sofa } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import SplitText from "@/components/SplitText";
 import { BookingModal } from "@/components/booking/BookingModal";
+import { useAuth } from "@/components/providers/auth-provider";
 import { Button } from "@/components/ui/button";
 import { getFacilityIcon } from "@/lib/facility-icons";
 import { cn } from "@/lib/utils";
@@ -250,6 +251,8 @@ export function LibraryDetailClient({
   // A "Renew" link from the student dashboard arrives as ?book=1 and names the
   // plan and slot it is renewing, so the modal opens with them already chosen.
   const searchParams = useSearchParams();
+  const { user } = useAuth();
+  const router = useRouter();
   const renewPlan = searchParams.get("plan");
   const initialPlan =
     renewPlan === "MONTHLY" || renewPlan === "QUARTERLY" || renewPlan === "ANNUAL"
@@ -654,14 +657,26 @@ export function LibraryDetailClient({
                   {allSeatsFull ? (
                     <Button
                       className="w-full bg-forest-900 text-sand-100 hover:bg-forest-900/90"
-                      onClick={() => setShowModal(true)}
+                      onClick={() => {
+                        if (!user) {
+                          router.push(`/auth/login?redirect=/library/${library.id}`);
+                        } else {
+                          setShowModal(true);
+                        }
+                      }}
                     >
                       Join Waitlist
                     </Button>
                   ) : (
                     <Button
                       className="w-full bg-[#16a34a] text-white hover:bg-[#15803d]"
-                      onClick={() => setShowModal(true)}
+                      onClick={() => {
+                        if (!user) {
+                          router.push(`/auth/login?redirect=/library/${library.id}`);
+                        } else {
+                          setShowModal(true);
+                        }
+                      }}
                     >
                       Book Now
                     </Button>

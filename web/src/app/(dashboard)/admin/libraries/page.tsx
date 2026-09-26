@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -13,7 +13,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import {
-  CheckCircle, Download, ExternalLink, Loader2,
+  CheckCircle, Download, ExternalLink, Loader2, ShieldCheck,
   ShieldOff, Trash2, ChevronsUpDown,
 } from "lucide-react";
 
@@ -113,7 +113,7 @@ export default function AdminLibrariesPage() {
     setError(null);
     try {
       await api.patch(`/admin/libraries/${id}/verify`);
-      updateLib(id, { isVerified: true });
+      updateLib(id, { isVerified: true, isActive: true });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not verify the library.");
     }
@@ -132,6 +132,18 @@ export default function AdminLibrariesPage() {
     setActing(null);
   };
 
+  const handleActivate = async (id: string) => {
+    setActing(id + "_activate");
+    setError(null);
+    try {
+      await api.patch(`/admin/libraries/${id}/activate`);
+      updateLib(id, { isActive: true });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not activate the library.");
+    }
+    setActing(null);
+  };
+
   const handleDelete = async (id: string) => {
     if (!confirm("Permanently delete this library?")) return;
     setActing(id + "_delete");
@@ -145,13 +157,13 @@ export default function AdminLibrariesPage() {
     setActing(null);
   };
 
-  const handleBulk = async (action: "verify" | "suspend") => {
+  const handleBulk = async (action: "verify" | "suspend" | "activate") => {
     if (selected.size === 0) return;
     setError(null);
     try {
       await api.patch("/admin/libraries", { action, ids: [...selected] });
       selected.forEach((id) =>
-        updateLib(id, action === "verify" ? { isVerified: true } : { isActive: false })
+        updateLib(id, action === "verify" ? { isVerified: true, isActive: true } : action === "activate" ? { isActive: true } : { isActive: false })
       );
       setSelected(new Set());
     } catch (err) {
@@ -243,6 +255,14 @@ export default function AdminLibrariesPage() {
                   {acting === lib._id + "_suspend" ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldOff className="size-3.5" />}
                 </button>
               )}
+              {!lib.isActive && (
+                <button type="button" onClick={() => void handleActivate(lib._id)}
+                  disabled={acting === lib._id + "_activate"}
+                  title="Activate library"
+                  className="flex size-7 items-center justify-center rounded-lg text-[#16a34a] hover:bg-[#16a34a]/10 transition">
+                  {acting === lib._id + "_activate" ? <Loader2 className="size-3.5 animate-spin" /> : <ShieldCheck className="size-3.5" />}
+                </button>
+              )}
               <button type="button" onClick={() => void handleDelete(lib._id)}
                 disabled={acting === lib._id + "_delete"}
                 className="flex size-7 items-center justify-center rounded-lg text-red-500 hover:bg-red-50 transition">
@@ -303,17 +323,33 @@ export default function AdminLibrariesPage() {
             </p>
           </div>
           <div className="flex gap-2">
-            {selected.size > 0 && (
-              <>
-                <Button size="sm" className="bg-[#16a34a] text-white hover:bg-[#15803d]"
-                  onClick={() => void handleBulk("verify")}>
-                  Verify {selected.size}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => void handleBulk("suspend")}>
-                  Suspend {selected.size}
-                </Button>
-              </>
-            )}
+            {selected.size > 0 && (() => {
+              const sel = libraries.filter((l) => selected.has(l._id));
+              return (
+                <>
+                  {sel.some((l) => !l.isVerified) && (
+                    <Button size="sm" className="bg-[#16a34a] text-white hover:bg-[#15803d]"
+                      onClick={() => void handleBulk("verify")}>
+                      Verify {selected.size}
+                    </Button>
+                  )}
+                  {sel.some((l) => !l.isActive) && (
+                    <Button size="sm" variant="outline"
+                      className="border-[#16a34a]/40 text-[#16a34a] hover:bg-[#16a34a]/10"
+                      onClick={() => void handleBulk("activate")}>
+                      Activate {selected.size}
+                    </Button>
+                  )}
+                  {sel.some((l) => l.isActive) && (
+                    <Button size="sm" variant="outline"
+                      className="border-amber-300 text-amber-600 hover:bg-amber-50"
+                      onClick={() => void handleBulk("suspend")}>
+                      Suspend {selected.size}
+                    </Button>
+                  )}
+                </>
+              );
+            })()}
             <Button size="sm" variant="outline" onClick={handleExport}>
               <Download className="size-3.5" /> Export CSV
             </Button>
