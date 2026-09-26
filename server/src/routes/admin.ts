@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
@@ -103,13 +103,53 @@ router.get("/libraries", async (req: Request, res: Response): Promise<void> => {
 router.patch("/libraries", async (req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
-    const { action, ids } = req.body as { action?: "verify" | "suspend"; ids?: string[] };
-    const update = action === "verify" ? { isVerified: true } : { isActive: false };
+    const { action, ids } = req.body as { action?: "verify" | "suspend" | "activate"; ids?: string[] };
+    const update =
+      action === "verify"   ? { isVerified: true, isActive: true } :
+      action === "activate" ? { isActive: true }                   :
+                              { isActive: false };
     const result = await LibraryModel.updateMany({ _id: { $in: ids } }, update);
     res.json({ modifiedCount: result.modifiedCount });
   } catch (err) {
     console.error("[admin/libraries PATCH]", err);
     res.status(500).json({ error: "Bulk update failed." });
+  }
+});
+
+
+router.patch("/libraries/:id/verify", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const library = await LibraryModel.findByIdAndUpdate(req.params.id, { isVerified: true, isActive: true }, { new: true });
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+    res.json({ library: { ...library.toObject(), _id: String(library._id) } });
+  } catch (err) {
+    console.error("[admin/libraries verify]", err);
+    res.status(500).json({ error: "Failed to verify library." });
+  }
+});
+
+router.patch("/libraries/:id/suspend", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const library = await LibraryModel.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+    res.json({ library: { ...library.toObject(), _id: String(library._id) } });
+  } catch (err) {
+    console.error("[admin/libraries suspend]", err);
+    res.status(500).json({ error: "Failed to suspend library." });
+  }
+});
+
+router.patch("/libraries/:id/activate", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const library = await LibraryModel.findByIdAndUpdate(req.params.id, { isActive: true }, { new: true });
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+    res.json({ library: { ...library.toObject(), _id: String(library._id) } });
+  } catch (err) {
+    console.error("[admin/libraries activate]", err);
+    res.status(500).json({ error: "Failed to activate library." });
   }
 });
 
@@ -136,29 +176,6 @@ router.delete("/libraries/:id", async (req: Request, res: Response): Promise<voi
   }
 });
 
-router.patch("/libraries/:id/verify", async (req: Request, res: Response): Promise<void> => {
-  try {
-    await connectDB();
-    const library = await LibraryModel.findByIdAndUpdate(req.params.id, { isVerified: true }, { new: true });
-    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
-    res.json({ library: { ...library.toObject(), _id: String(library._id) } });
-  } catch (err) {
-    console.error("[admin/libraries verify]", err);
-    res.status(500).json({ error: "Failed to verify library." });
-  }
-});
-
-router.patch("/libraries/:id/suspend", async (req: Request, res: Response): Promise<void> => {
-  try {
-    await connectDB();
-    const library = await LibraryModel.findByIdAndUpdate(req.params.id, { isActive: false }, { new: true });
-    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
-    res.json({ library: { ...library.toObject(), _id: String(library._id) } });
-  } catch (err) {
-    console.error("[admin/libraries suspend]", err);
-    res.status(500).json({ error: "Failed to suspend library." });
-  }
-});
 
 // ─── STUDENTS ─────────────────────────────────────────────────────────────
 router.get("/students", async (req: Request, res: Response): Promise<void> => {
