@@ -111,7 +111,7 @@ function ActiveBookingCard({
 
   return (
     <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-      <div className="bg-gradient-to-r from-[#16a34a] to-[#4a7c2a] px-6 py-4">
+      <div className="bg-gradient-to-r from-[#16a34a] to-[#0f4c25] px-6 py-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
           Active Booking
         </p>
@@ -227,12 +227,12 @@ function StatCard({
       className="group block h-full min-w-0 rounded-card border border-line bg-white p-5 shadow-soft transition hover:-translate-y-0.5 hover:shadow-lift"
     >
       <div className="flex items-start justify-between">
-        <div className="flex size-10 items-center justify-center rounded-2xl bg-[#16a34a]/10">
-          <Icon className="size-5 text-[#16a34a]" aria-hidden />
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-[#16a34a]/10">
+          <Icon className="size-6 text-[#16a34a]" aria-hidden />
         </div>
         <ArrowRight className="size-4 text-forest-900/30 transition group-hover:text-[#16a34a]" />
       </div>
-      <p className="mt-3 text-2xl font-bold text-forest-900">
+      <p className="mt-3 font-display text-2xl font-bold text-forest-900">
         {prefix}
         <CountUp end={value} duration={1.2} />
       </p>
@@ -311,7 +311,7 @@ export default function StudentOverviewPage() {
         ) : (
           <AnimatedContent distance={24} duration={0.5} threshold={0} delay={0.05}>
             <div className="rounded-card border border-dashed border-line bg-white/60 px-6 py-10 text-center">
-              <BookMarked className="mx-auto size-8 text-forest-900/30" />
+              <BookMarked className="mx-auto size-10 text-forest-900/50" />
               <p className="mt-3 text-sm font-semibold text-forest-900">
                 No active booking
               </p>

@@ -53,7 +53,7 @@ function NavLink({ href, label, onClick }: { href: string; label: string; onClic
     >
       {label}
       {isActive && (
-        <span className="absolute -bottom-1 left-0 right-0 h-0.5 rounded-full bg-[#16a34a]" />
+        <span className="absolute -bottom-0.5 left-0 right-0 h-0.5 rounded-full bg-[#16a34a]" />
       )}
     </Link>
   );
@@ -72,7 +72,7 @@ function UserMenu() {
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="rounded-full outline-none ring-2 ring-transparent ring-offset-2 transition focus-visible:ring-[#16a34a]"
+          className="rounded-full outline-none border-2 border-line transition focus-visible:ring-2 focus-visible:ring-[#16a34a] focus-visible:ring-offset-2"
           aria-label="Open account menu"
         >
           <Avatar size="default">
@@ -197,8 +197,8 @@ export function Header() {
 
         {/* Logo */}
         <Link href="/" className="flex min-w-0 shrink-0 items-center gap-2.5">
-          <div className="flex size-9 items-center justify-center rounded-xl bg-[#16a34a] text-white shadow-sm">
-            <BookOpen className="size-4.5" aria-hidden />
+          <div className="flex size-10 items-center justify-center rounded-2xl bg-[#16a34a] text-white shadow-sm">
+            <BookOpen className="size-5" aria-hidden />
           </div>
           <ShinyText
             text="Scholar's Hub"

@@ -11,7 +11,7 @@ const roles = [
     desc: "Find verified libraries near you. Compare fees, facilities, and availability.",
     perks: ["Browse 500+ libraries", "Book in 2 minutes", "Instant confirmation"],
     btnClass: "bg-[#16a34a] text-white hover:bg-[#15803d]",
-    btnLabel: "Continue as Student",
+    btnLabel: "Sign up as Student",
     highlight: true,
   },
   {
@@ -23,7 +23,7 @@ const roles = [
     desc: "List on Scholar's Hub and reach thousands of students in your city.",
     perks: ["Free listing", "Manage bookings", "Revenue dashboard"],
     btnClass: "border border-forest-700 text-forest-700 hover:bg-forest-700/5",
-    btnLabel: "Register My Library",
+    btnLabel: "List My Library",
     highlight: false,
   },
 ];
@@ -73,9 +73,9 @@ export default function SignupPage() {
             </ul>
             <Link
               href={href}
-              className={`mt-auto flex h-10 w-full items-center justify-center gap-2 rounded-full text-sm font-semibold transition ${btnClass}`}
+              className={`mt-auto flex w-full items-center justify-center gap-2 rounded-full py-2.5 text-sm font-semibold transition ${btnClass}`}
             >
-              {btnLabel} <ArrowRight className="size-3.5" />
+              {btnLabel} <ArrowRight className="size-3.5 shrink-0" />
             </Link>
           </div>
         ))}

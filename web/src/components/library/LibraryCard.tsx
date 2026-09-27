@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Star } from "lucide-react";
+import { Star, BookOpen } from "lucide-react";
 
 import TiltedCard from "@/components/TiltedCard";
 import { Button } from "@/components/ui/button";
@@ -73,14 +73,16 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
         ) : (
           <div
             className={cn(
-              "aspect-video w-full",
+              "aspect-video w-full flex items-center justify-center",
               library.coverTone
                 ? toneStyles[library.coverTone]
                 : "bg-gradient-to-br from-sage-100 via-sage-200 to-sand-100"
             )}
             role="img"
             aria-label={`${library.name} cover`}
-          />
+          >
+            <BookOpen className="size-12 text-forest-900/20" aria-hidden />
+          </div>
         )}
         <span
           className={cn(
@@ -133,7 +135,7 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
         <div className="mt-auto pt-5">
           <Button
             asChild
-            className="w-full bg-[#16a34a] text-white hover:bg-[#15803d]"
+            className="w-full rounded-full bg-[#16a34a] text-white hover:bg-[#15803d]"
           >
             <Link href={`/library/${libraryId}`}>View Details</Link>
           </Button>

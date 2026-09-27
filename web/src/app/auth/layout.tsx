@@ -50,6 +50,15 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
 
           {/* -- Right panel (form) ------------------------------- */}
           <div className="rounded-card border border-line bg-white dark:bg-[#18181b] dark:border-[#27272a] p-6 shadow-soft sm:p-8">
+            {/* Mobile brand header — only visible below lg breakpoint */}
+            <div className="mb-6 flex items-center gap-2.5 lg:hidden">
+              <div className="flex size-8 items-center justify-center rounded-xl bg-[#16a34a] text-white">
+                <BookOpen className="size-4" aria-hidden />
+              </div>
+              <span className="font-display text-base font-semibold text-forest-900 dark:text-white">
+                Scholar&apos;s Hub
+              </span>
+            </div>
             {children}
           </div>
         </div>

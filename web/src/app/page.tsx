@@ -175,7 +175,7 @@ export default function Home() {
 
               <Link
                 href="/libraries"
-                className="mt-auto inline-flex h-10 items-center justify-center rounded-full bg-forest-900 px-5 text-sm font-semibold text-sand-100 transition hover:bg-[#16a34a]"
+                className="mt-auto inline-flex h-10 items-center justify-center rounded-full bg-[#16a34a] px-5 text-sm font-semibold text-white transition hover:bg-[#15803d]"
               >
                 View details
               </Link>
@@ -218,7 +218,7 @@ export default function Home() {
           </div>
 
           {/* Demand pulse */}
-          <div className="rounded-card border border-line bg-sage-100/70 p-6 shadow-soft">
+          <div className="rounded-card border border-line bg-white/80 p-6 shadow-soft">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <TrendingUp className="size-4 text-[#16a34a]" />
@@ -274,7 +274,7 @@ export default function Home() {
             {testimonials.map((item) => (
               <figure
                 key={item.name}
-                className="flex flex-col rounded-card border border-line bg-white/80 p-6 shadow-soft"
+                className={`flex flex-col rounded-card border p-6 shadow-soft ${item.name === "Aditya V." ? "border-[#16a34a]/20 bg-[#16a34a]/5" : "border-line bg-white/80"}`}
               >
                 <div className="flex items-center gap-1 mb-4">
                   {Array.from({ length: item.rating }).map((_, i) => (
@@ -319,7 +319,7 @@ export default function Home() {
                 open={index === 0}
                 className="group rounded-2xl border border-line bg-white/85 shadow-soft transition-all open:shadow-lift"
               >
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 text-left text-sm font-semibold text-forest-900 marker:hidden [&::-webkit-details-marker]:hidden sm:px-6 sm:py-5 sm:text-base">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 rounded-2xl px-5 py-4 text-left text-sm font-semibold text-forest-900 transition hover:bg-sage-100/50 marker:hidden [&::-webkit-details-marker]:hidden sm:px-6 sm:py-5 sm:text-base">
                   {faq.question}
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-sage-100 text-forest-700 transition-transform duration-200 group-open:rotate-180 group-open:bg-[#16a34a]/10 group-open:text-[#16a34a]">
                     <ChevronDown className="size-4" aria-hidden />

@@ -114,7 +114,7 @@ export default function LoginPage() {
               "flex-1 rounded-lg py-2 text-xs font-semibold transition-colors",
               role === value
                 ? "bg-[#16a34a] text-white shadow-sm"
-                : "text-forest-900/60 hover:text-forest-900 dark:text-[#a1a1aa] dark:hover:text-white",
+                : "bg-sand-100/60 text-forest-900/60 hover:text-forest-900 dark:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white",
             ].join(" ")}
           >
             {label}

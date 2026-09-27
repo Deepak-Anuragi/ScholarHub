@@ -57,7 +57,7 @@ export function HeroSection() {
       <div className={isDark ? "pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-[#09090b]/50 to-[#09090b]" : "pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-sand-100/40 to-sand-100"} />
 
       <div className="relative z-10 mx-auto w-full max-w-6xl px-4 py-16 sm:px-6 lg:py-24">
-        <div className="mx-auto max-w-3xl text-center">
+        <div className="mx-auto max-w-3xl rounded-3xl text-center dark:backdrop-blur-sm dark:bg-black/10 dark:px-6 dark:py-4">
 
           {/* Badge */}
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#16a34a]/30 bg-[#16a34a]/10 px-4 py-1.5 text-xs font-semibold uppercase tracking-wider text-[#16a34a]">
@@ -65,7 +65,7 @@ export function HeroSection() {
             500+ verified libraries across India
           </div>
 
-          <h1 className="font-display text-4xl font-bold leading-tight text-forest-900 sm:text-5xl lg:text-6xl">
+          <h1 className="font-display text-4xl font-bold leading-tight text-forest-900 dark:text-white sm:text-5xl lg:text-6xl">
             Find the Best Library
             <span className="mt-2 block text-3xl sm:text-4xl lg:text-5xl">
               in{" "}
