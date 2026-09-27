@@ -94,7 +94,7 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
 
       <div className="flex flex-1 flex-col p-5">
         <div className="space-y-1">
-          <h3 className="text-lg font-semibold text-forest-900 transition group-hover:text-[#16a34a]">
+          <h3 className="font-display text-lg font-semibold text-forest-900 transition group-hover:text-[#16a34a]">
             {library.name}
           </h3>
           <p className="text-sm text-forest-900/70">
@@ -106,8 +106,8 @@ export function LibraryCard({ library, view = "grid" }: LibraryCardProps) {
         </div>
 
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <span className="inline-flex items-center gap-1 font-semibold text-forest-900">
-            <Star className="size-4 fill-amber-400 text-amber-400" />
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
+            <Star className="size-3 fill-amber-400 text-amber-400" />
             {rating.toFixed(1)}
           </span>
           <span className="text-forest-900/70">

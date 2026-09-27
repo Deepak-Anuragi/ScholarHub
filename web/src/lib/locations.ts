@@ -2,7 +2,7 @@ import { api } from "./api";
 
 export type LocationTree = Record<string, Record<string, string[]>>;
 
-// ── Async API helpers calling Express backend ──────────────────────────────
+// -- Async API helpers calling Express backend ------------------------------
 export async function fetchLocations(
   state?: string,
   district?: string

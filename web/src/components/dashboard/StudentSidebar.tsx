@@ -74,7 +74,7 @@ function NavItem({
         "flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-sm font-medium transition-colors",
         active
           ? "bg-[#16a34a] text-white shadow-sm"
-          : "text-forest-900/70 hover:bg-sage-100 hover:text-forest-900"
+          : "text-forest-900/70 hover:bg-sage-100 hover:text-forest-900 dark:text-[#a1a1aa] dark:hover:bg-[#27272a] dark:hover:text-white"
       )}
       aria-current={active ? "page" : undefined}
     >
@@ -123,8 +123,8 @@ export function StudentSidebar() {
 
   return (
     <>
-      {/* ── Desktop sidebar ─────────────────────────────────────────────── */}
-      <aside className="sticky top-[var(--header-height)] hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col border-r border-line bg-white lg:flex">
+      {/* -- Desktop sidebar ----------------------------------------------- */}
+      <aside className="sticky top-[var(--header-height)] hidden h-[calc(100vh-var(--header-height))] w-60 shrink-0 flex-col border-r border-line bg-white dark:bg-[#111113] dark:border-[#27272a] lg:flex">
         {/* Logo */}
         <div className="flex items-center gap-3 border-b border-line px-5 py-4">
           <div className="flex size-9 items-center justify-center rounded-xl bg-[#16a34a] text-white shadow-sm">
@@ -183,7 +183,7 @@ export function StudentSidebar() {
         </div>
       </aside>
 
-      {/* ── Mobile bottom nav ────────────────────────────────────────────── */}
+      {/* -- Mobile bottom nav ---------------------------------------------- */}
       <DashboardMobileNav
         items={NAV}
         primary={MOBILE_PRIMARY}

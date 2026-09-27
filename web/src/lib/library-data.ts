@@ -7,7 +7,7 @@
  */
 
 
-// ─── Normalised shapes ────────────────────────────────────────────────────────
+// --- Normalised shapes --------------------------------------------------------
 
 export type NormLibrary = {
   id: string;
@@ -62,12 +62,12 @@ export type LibraryPageData = {
   reviewTotal: number;
 };
 
-// ─── Mock-data adapters ───────────────────────────────────────────────────────
+// --- Mock-data adapters -------------------------------------------------------
 
 
 
 
-// ─── API fetch ────────────────────────────────────────────────────────────────
+// --- API fetch ----------------------------------------------------------------
 
 async function fetchFromAPI(id: string): Promise<LibraryPageData | null> {
   // In Server Components this runs on the server — call the Express API directly.
@@ -129,7 +129,7 @@ async function fetchFromAPI(id: string): Promise<LibraryPageData | null> {
   return { library, slots, reviews, reviewTotal: reviewsData.total };
 }
 
-// ─── Public API ───────────────────────────────────────────────────────────────
+// --- Public API ---------------------------------------------------------------
 
 export async function getLibraryPageData(id: string): Promise<LibraryPageData | null> {
   // Errors propagate on purpose. Serving mock data when the API is down made a

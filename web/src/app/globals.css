@@ -1,180 +1,305 @@
-@import "tailwindcss";
+﻿@import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
 @custom-variant dark (&:is(.dark *));
 
+/* ======================================================================
+   LIGHT THEME
+   ====================================================================== */
 :root {
   --header-height: 4.5rem;
-  --surface: #ffffff;
-  --ink: #1f2b1b;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
-}
 
-@theme inline {
-  --color-background: var(--background);
-  --color-surface: var(--surface);
-  --color-ink: var(--ink);
-  --color-sand-100: #f0e3d7;
-  --color-sage-100: #d1e8d2;
-  --color-sage-200: #a8d8b9;
-  --color-sage-300: #b7c9b2;
+  /* Brand palette - light */
+  --color-sand-100:   #f0e3d7;
+  --color-sage-100:   #d1e8d2;
+  --color-sage-200:   #a8d8b9;
+  --color-sage-300:   #b7c9b2;
   --color-forest-700: #4a7c2a;
   --color-forest-900: #253b1c;
-  --color-line: #d6e2d3;
+  --color-line:       #d6e2d3;
+  --color-surface:    #ffffff;
+  --color-ink:        #1f2b1b;
+
+  /* Shadcn base tokens */
+  --background:                 oklch(1 0 0);
+  --foreground:                 oklch(0.145 0 0);
+  --card:                       oklch(1 0 0);
+  --card-foreground:            oklch(0.145 0 0);
+  --popover:                    oklch(1 0 0);
+  --popover-foreground:         oklch(0.145 0 0);
+  --primary:                    oklch(0.205 0 0);
+  --primary-foreground:         oklch(0.985 0 0);
+  --secondary:                  oklch(0.97 0 0);
+  --secondary-foreground:       oklch(0.205 0 0);
+  --muted:                      oklch(0.97 0 0);
+  --muted-foreground:           oklch(0.556 0 0);
+  --accent:                     oklch(0.97 0 0);
+  --accent-foreground:          oklch(0.205 0 0);
+  --destructive:                oklch(0.577 0.245 27.325);
+  --border:                     oklch(0.922 0 0);
+  --input:                      oklch(0.922 0 0);
+  --ring:                       oklch(0.708 0 0);
+  --chart-1:                    oklch(0.87 0 0);
+  --chart-2:                    oklch(0.556 0 0);
+  --chart-3:                    oklch(0.439 0 0);
+  --chart-4:                    oklch(0.371 0 0);
+  --chart-5:                    oklch(0.269 0 0);
+  --radius:                     0.625rem;
+  --sidebar:                    oklch(0.985 0 0);
+  --sidebar-foreground:         oklch(0.145 0 0);
+  --sidebar-primary:            oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent:             oklch(0.97 0 0);
+  --sidebar-accent-foreground:  oklch(0.205 0 0);
+  --sidebar-border:             oklch(0.922 0 0);
+  --sidebar-ring:               oklch(0.708 0 0);
+}
+
+/* ======================================================================
+   DARK THEME - pure neutral dark (VS Code / GitHub Dark style)
+   Depth: #09090b (page) > #111113 (sections) > #18181b (cards) > #27272a (inputs)
+   Text:  #fafafa (primary) / #a1a1aa (muted)
+   Accent: brand green #4ade80 / #16a34a for buttons & active states only
+   ====================================================================== */
+.dark {
+  /* Backgrounds - pure neutral zinc/black, no color tint */
+  --color-surface:    #09090b;
+  --color-sand-100:   #111113;
+  --color-sage-100:   #18181b;
+  --color-sage-200:   #27272a;
+  --color-sage-300:   #3f3f46;
+
+  /* Text - white hierarchy */
+  --color-forest-900: #fafafa;
+  --color-forest-700: #a1a1aa;
+  --color-ink:        #fafafa;
+
+  /* Borders */
+  --color-line:       #27272a;
+
+  /* Shadcn base tokens */
+  --background:                 #09090b;
+  --foreground:                 #fafafa;
+  --card:                       #18181b;
+  --card-foreground:            #fafafa;
+  --popover:                    #18181b;
+  --popover-foreground:         #fafafa;
+  --primary:                    #4ade80;
+  --primary-foreground:         #09090b;
+  --secondary:                  #27272a;
+  --secondary-foreground:       #fafafa;
+  --muted:                      #27272a;
+  --muted-foreground:           #a1a1aa;
+  --accent:                     #27272a;
+  --accent-foreground:          #fafafa;
+  --destructive:                #ef4444;
+  --border:                     #27272a;
+  --input:                      #27272a;
+  --ring:                       #4ade80;
+  --chart-1:                    #4ade80;
+  --chart-2:                    #34d399;
+  --chart-3:                    #6ee7b7;
+  --chart-4:                    #a7f3d0;
+  --chart-5:                    #27272a;
+  --sidebar:                    #111113;
+  --sidebar-foreground:         #fafafa;
+  --sidebar-primary:            #4ade80;
+  --sidebar-primary-foreground: #09090b;
+  --sidebar-accent:             #27272a;
+  --sidebar-accent-foreground:  #fafafa;
+  --sidebar-border:             #27272a;
+  --sidebar-ring:               #4ade80;
+}
+
+/* ======================================================================
+   TAILWIND THEME MAPPING
+   References runtime CSS vars so every utility auto-switches on .dark
+   ====================================================================== */
+@theme inline {
+  --color-background:  var(--background);
+  --color-foreground:  var(--foreground);
+  --color-surface:     var(--color-surface);
+  --color-ink:         var(--color-ink);
+  --color-sand-100:    var(--color-sand-100);
+  --color-sage-100:    var(--color-sage-100);
+  --color-sage-200:    var(--color-sage-200);
+  --color-sage-300:    var(--color-sage-300);
+  --color-forest-700:  var(--color-forest-700);
+  --color-forest-900:  var(--color-forest-900);
+  --color-line:        var(--color-line);
+
   --shadow-soft: 0 20px 50px -35px rgba(27, 45, 22, 0.45);
   --shadow-lift: 0 32px 80px -50px rgba(27, 45, 22, 0.55);
-  --radius-card: 24px;
-  --font-sans: var(--font-sans);
-  --font-display: var(--font-fraunces);
-  --font-heading: var(--font-sans);
-  --color-sidebar-ring: var(--sidebar-ring);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
+  --radius-card:   24px;
+  --font-sans:     var(--font-sans);
+  --font-display:  var(--font-fraunces);
+  --font-heading:  var(--font-sans);
+
+  --color-sidebar-ring:               var(--sidebar-ring);
+  --color-sidebar-border:             var(--sidebar-border);
+  --color-sidebar-accent-foreground:  var(--sidebar-accent-foreground);
+  --color-sidebar-accent:             var(--sidebar-accent);
   --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar: var(--sidebar);
-  --color-chart-5: var(--chart-5);
-  --color-chart-4: var(--chart-4);
-  --color-chart-3: var(--chart-3);
-  --color-chart-2: var(--chart-2);
-  --color-chart-1: var(--chart-1);
-  --color-ring: var(--ring);
-  --color-input: var(--input);
-  --color-border: var(--border);
-  --color-destructive: var(--destructive);
-  --color-accent-foreground: var(--accent-foreground);
-  --color-accent: var(--accent);
-  --color-muted-foreground: var(--muted-foreground);
-  --color-muted: var(--muted);
-  --color-secondary-foreground: var(--secondary-foreground);
-  --color-secondary: var(--secondary);
-  --color-primary-foreground: var(--primary-foreground);
-  --color-primary: var(--primary);
-  --color-popover-foreground: var(--popover-foreground);
-  --color-popover: var(--popover);
-  --color-card-foreground: var(--card-foreground);
-  --color-card: var(--card);
-  --color-foreground: var(--foreground);
-  --radius-sm: calc(var(--radius) * 0.6);
-  --radius-md: calc(var(--radius) * 0.8);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) * 1.4);
+  --color-sidebar-primary:            var(--sidebar-primary);
+  --color-sidebar-foreground:         var(--sidebar-foreground);
+  --color-sidebar:                    var(--sidebar);
+  --color-chart-5:                    var(--chart-5);
+  --color-chart-4:                    var(--chart-4);
+  --color-chart-3:                    var(--chart-3);
+  --color-chart-2:                    var(--chart-2);
+  --color-chart-1:                    var(--chart-1);
+  --color-ring:                       var(--ring);
+  --color-input:                      var(--input);
+  --color-border:                     var(--border);
+  --color-destructive:                var(--destructive);
+  --color-accent-foreground:          var(--accent-foreground);
+  --color-accent:                     var(--accent);
+  --color-muted-foreground:           var(--muted-foreground);
+  --color-muted:                      var(--muted);
+  --color-secondary-foreground:       var(--secondary-foreground);
+  --color-secondary:                  var(--secondary);
+  --color-primary-foreground:         var(--primary-foreground);
+  --color-primary:                    var(--primary);
+  --color-popover-foreground:         var(--popover-foreground);
+  --color-popover:                    var(--popover);
+  --color-card-foreground:            var(--card-foreground);
+  --color-card:                       var(--card);
+
+  --radius-sm:  calc(var(--radius) * 0.6);
+  --radius-md:  calc(var(--radius) * 0.8);
+  --radius-lg:  var(--radius);
+  --radius-xl:  calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ======================================================================
+   BASE STYLES
+   ====================================================================== */
 body {
-  color: var(--ink);
+  background-color: var(--color-surface);
+  color: var(--color-ink);
   font-family: var(--font-sans);
 }
 
 @keyframes float {
-  0%,
-  100% {
-    transform: translateY(0px);
-  }
-  50% {
-    transform: translateY(-10px);
-  }
+  0%, 100% { transform: translateY(0px); }
+  50%       { transform: translateY(-10px); }
 }
-
 @keyframes fade-up {
-  0% {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  100% {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  0%   { opacity: 0; transform: translateY(14px); }
+  100% { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes fade-in {
-  0% {
-    opacity: 0;
-  }
-  100% {
-    opacity: 1;
-  }
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.87 0 0);
-  --chart-2: oklch(0.556 0 0);
-  --chart-3: oklch(0.439 0 0);
-  --chart-4: oklch(0.371 0 0);
-  --chart-5: oklch(0.269 0 0);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  0%   { opacity: 0; }
+  100% { opacity: 1; }
 }
 
 @layer base {
-  * {
-    @apply border-border outline-ring/50;
-  }
-  body {
-    @apply bg-background text-foreground;
-  }
-  html {
-    @apply font-sans;
-  }
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground; }
+  html { @apply font-sans; }
 }
+
+/* ======================================================================
+   DARK MODE GLOBAL OVERRIDES
+   Handles hardcoded Tailwind utilities across 170+ component files.
+   ====================================================================== */
+
+/* bg-white solid */
+.dark .bg-white { background-color: var(--color-sage-100) !important; }
+
+/* bg-white high-opacity variants */
+.dark .bg-white\/95,
+.dark .bg-white\/90,
+.dark .bg-white\/85,
+.dark .bg-white\/80 { background-color: var(--color-sage-100) !important; }
+
+/* bg-white medium-opacity variants */
+.dark .bg-white\/70,
+.dark .bg-white\/60 { background-color: color-mix(in srgb, var(--color-sage-100) 80%, transparent) !important; }
+
+/* bg-white low-opacity (hero overlays) */
+.dark .bg-white\/20 { background-color: color-mix(in srgb, var(--color-sage-100) 18%, transparent) !important; }
+
+/* Sidebar gets L1 depth (slightly darker than cards) */
+.dark aside.bg-white { background-color: var(--color-sand-100) !important; }
+
+/* Inputs and selects */
+.dark input.bg-white,
+.dark input[class*="bg-white"],
+.dark textarea.bg-white,
+.dark select.bg-white,
+.dark select[class*="bg-white"] {
+  background-color: var(--color-sage-200) !important;
+  color: var(--color-forest-900);
+  border-color: var(--color-line) !important;
+}
+
+/* bg-sand-100 opacity */
+.dark .bg-sand-100\/50 { background-color: color-mix(in srgb, var(--color-sand-100) 60%, transparent) !important; }
+
+/* bg-sage-100 opacity */
+.dark .bg-sage-100\/60,
+.dark .bg-sage-100\/70 { background-color: color-mix(in srgb, var(--color-sage-100) 70%, transparent) !important; }
+
+/* Admin active nav pill (uses bg-forest-900 which becomes pale in dark) */
+.dark .bg-forest-900.text-white {
+  background-color: #16a34a !important;
+  color: #ffffff !important;
+}
+
+/* text-black */
+.dark .text-black { color: var(--color-forest-900); }
+
+/* Logout hover */
+.dark .hover\:bg-red-50:hover { background-color: rgb(127 29 29 / 0.35) !important; }
+
+/* Status badges - Red */
+.dark .bg-red-50   { background-color: rgb(127 29 29 / 0.35) !important; }
+.dark .bg-red-100  { background-color: rgb(127 29 29 / 0.55) !important; }
+.dark .text-red-600,
+.dark .text-red-500 { color: #fca5a5 !important; }
+.dark .text-red-700 { color: #f87171 !important; }
+.dark .border-red-200 { border-color: rgb(127 29 29 / 0.5) !important; }
+
+/* Status badges - Amber */
+.dark .bg-amber-50  { background-color: rgb(120 53 15 / 0.35) !important; }
+.dark .bg-amber-100 { background-color: rgb(120 53 15 / 0.55) !important; }
+.dark .text-amber-700,
+.dark .text-amber-600 { color: #fcd34d !important; }
+.dark .border-amber-200 { border-color: rgb(120 53 15 / 0.5) !important; }
+
+/* Status badges - Blue */
+.dark .bg-blue-50  { background-color: rgb(23 37 84 / 0.35) !important; }
+.dark .bg-blue-100 { background-color: rgb(23 37 84 / 0.55) !important; }
+.dark .text-blue-700 { color: #93c5fd !important; }
+.dark .border-blue-200 { border-color: rgb(23 37 84 / 0.5) !important; }
+
+/* Status badges - Purple */
+.dark .bg-purple-50  { background-color: rgb(76 29 149 / 0.35) !important; }
+.dark .bg-purple-100 { background-color: rgb(76 29 149 / 0.55) !important; }
+.dark .text-purple-700 { color: #d8b4fe !important; }
+.dark .border-purple-200 { border-color: rgb(76 29 149 / 0.5) !important; }
+
+/* Status badges - Green */
+.dark .bg-green-50 { background-color: rgb(20 83 45 / 0.35) !important; }
+.dark .text-green-600,
+.dark .text-green-700 { color: #86efac !important; }
+
+/* Gray utilities */
+.dark .bg-gray-200 { background-color: var(--color-sage-200) !important; }
+.dark .text-gray-400,
+.dark .text-gray-300 { color: var(--color-forest-700) !important; }
+
+/* Sheet / bottom drawer */
+.dark [data-radix-sheet-content].bg-white,
+.dark [class*="SheetContent"].bg-white {
+  background-color: var(--color-sage-100) !important;
+}
+
+/* Shadows */
+.dark .shadow-soft { box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.5) !important; }
+.dark .shadow-lift { box-shadow: 0 8px 40px -8px rgba(0, 0, 0, 0.65) !important; }

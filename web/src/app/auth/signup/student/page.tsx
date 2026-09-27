@@ -256,7 +256,7 @@ export default function StudentSignupPage() {
   );
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────
+// -- Helpers ----------------------------------------------------------------
 
 function inputCx(hasError: boolean) {
   return [

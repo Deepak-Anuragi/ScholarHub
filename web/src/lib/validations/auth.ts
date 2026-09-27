@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-// ── Regex constants ────────────────────────────────────────────────────────
+// -- Regex constants --------------------------------------------------------
 
 const passwordRegex = {
   uppercase:   /[A-Z]/,
@@ -18,7 +18,7 @@ const emailRegex = {
 export const phoneRegex     = /^[6-9][0-9]{9}$/;
 export const cityStateRegex = /^[a-zA-Z\s]{2,50}$/;
 
-// ── Password schema ────────────────────────────────────────────────────────
+// -- Password schema --------------------------------------------------------
 
 export const passwordSchema = z
   .string()
@@ -34,7 +34,7 @@ export const passwordSchema = z
     "Password must contain at least one special character (!@#$%^&* etc.)"
   );
 
-// ── Email schema ───────────────────────────────────────────────────────────
+// -- Email schema -----------------------------------------------------------
 
 export const emailSchema = z
   .string()
@@ -45,7 +45,7 @@ export const emailSchema = z
   .refine((v) => !/\s/.test(v), "Email must not contain spaces")
   .transform((v) => v.toLowerCase().trim());
 
-// ── Name schema ────────────────────────────────────────────────────────────
+// -- Name schema ------------------------------------------------------------
 
 export const nameSchema = z
   .string()
@@ -58,7 +58,7 @@ export const nameSchema = z
   .refine((v) => !/\d/.test(v), "Name must not contain numbers")
   .transform((v) => v.trim());
 
-// ── Phone schema ───────────────────────────────────────────────────────────
+// -- Phone schema -----------------------------------------------------------
 
 export const phoneSchema = z
   .string()
@@ -67,7 +67,7 @@ export const phoneSchema = z
   .length(10, "Phone number must be exactly 10 digits")
   .regex(phoneRegex, "Phone number must start with 6, 7, 8, or 9");
 
-// ── City schema ────────────────────────────────────────────────────────────
+// -- City schema ------------------------------------------------------------
 
 export const citySchema = z
   .string()
@@ -77,7 +77,7 @@ export const citySchema = z
   .regex(cityStateRegex, "City name can only contain letters and spaces")
   .transform((v) => v.trim());
 
-// ── State schema ───────────────────────────────────────────────────────────
+// -- State schema -----------------------------------------------------------
 
 export const stateSchema = z
   .string()
@@ -87,7 +87,7 @@ export const stateSchema = z
   .regex(cityStateRegex, "State name can only contain letters and spaces")
   .transform((v) => v.trim());
 
-// ── Library name schema ────────────────────────────────────────────────────
+// -- Library name schema ----------------------------------------------------
 
 export const libraryNameSchema = z
   .string()
@@ -102,14 +102,14 @@ export const libraryNameSchema = z
   .regex(/\S$/, "Library name must not end with a space")
   .transform((v) => v.trim());
 
-// ── Exam type schema ───────────────────────────────────────────────────────
+// -- Exam type schema -------------------------------------------------------
 
 export const examTypeSchema = z.enum(
   ["UPSC", "JEE", "NEET", "SSC", "BANKING", "BOARD", "ENTRANCE", "OTHER"],
   { error: () => "Please select a valid exam type" }
 );
 
-// ── Target year schema ─────────────────────────────────────────────────────
+// -- Target year schema -----------------------------------------------------
 
 export const targetYearSchema = z
   .number()
@@ -121,9 +121,9 @@ export const targetYearSchema = z
   .max(new Date().getFullYear() + 10, "Target year is too far in the future")
   .optional();
 
-// ═══════════════════════════════════════════════════════════════════════════
+// ===========================================================================
 // Signup schemas — one per role
-// ═══════════════════════════════════════════════════════════════════════════
+// ===========================================================================
 
 export const studentSignupSchema = z
   .object({
@@ -206,7 +206,7 @@ export const resetPasswordSchema = z
 
 export type ResetPasswordInput = z.infer<typeof resetPasswordSchema>;
 
-// ── Password strength checker ──────────────────────────────────────────────
+// -- Password strength checker ----------------------------------------------
 
 export type PasswordStrength = "empty" | "weak" | "medium" | "strong";
 

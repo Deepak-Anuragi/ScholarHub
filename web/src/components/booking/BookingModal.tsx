@@ -11,7 +11,7 @@ import { useAuth } from "@/components/providers/auth-provider";
 import { PLATFORM_RATE_LABEL, priceBooking } from "@/lib/pricing";
 import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// --- Types -------------------------------------------------------------------
 
 type Plan = "MONTHLY" | "QUARTERLY" | "ANNUAL";
 
@@ -41,7 +41,7 @@ type BookingModalProps = {
   onClose: () => void;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 const PLAN_LABELS: Record<Plan, string> = {
   MONTHLY: "Monthly",
@@ -106,7 +106,7 @@ function maxStartIso(): string {
   return d.toISOString().slice(0, 10);
 }
 
-// ─── Step indicator ───────────────────────────────────────────────────────────
+// --- Step indicator -----------------------------------------------------------
 
 function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
   const steps = ["Select", "Review", "Pay"];
@@ -149,7 +149,7 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
   );
 }
 
-// ─── Step 1 ───────────────────────────────────────────────────────────────────
+// --- Step 1 -------------------------------------------------------------------
 
 function Step1({
   fees,
@@ -326,7 +326,7 @@ function Step1({
   );
 }
 
-// ─── Step 2 ───────────────────────────────────────────────────────────────────
+// --- Step 2 -------------------------------------------------------------------
 
 function Step2({
   libraryName,
@@ -461,7 +461,7 @@ function Step2({
   );
 }
 
-// ─── Step 3 success screen ────────────────────────────────────────────────────
+// --- Step 3 success screen ----------------------------------------------------
 
 function SuccessScreen({ onClose }: { onClose: () => void }) {
   return (
@@ -496,7 +496,7 @@ function SuccessScreen({ onClose }: { onClose: () => void }) {
   );
 }
 
-// ─── Main modal ───────────────────────────────────────────────────────────────
+// --- Main modal ---------------------------------------------------------------
 
 export function BookingModal({
   libraryId,

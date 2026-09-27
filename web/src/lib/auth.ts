@@ -20,7 +20,7 @@ export function getDashboardPath(role: UserRole | string): string {
   }
 }
 
-// ── Server-side fetch (used by /api/auth/me proxy route in auth-provider) ──
+// -- Server-side fetch (used by /api/auth/me proxy route in auth-provider) --
 
 export async function fetchCurrentUser(): Promise<AuthUser | null> {
   const response = await fetch("/api/auth/me", {

@@ -91,8 +91,8 @@ export default function LoginPage() {
     <div className="grid gap-6">
       {/* Heading */}
       <div>
-        <p className="text-sm font-semibold text-forest-900/70">Welcome back</p>
-        <h2 className="mt-2 font-display text-2xl text-forest-900">
+        <p className="text-xs font-semibold uppercase tracking-wider text-[#16a34a]">Welcome back</p>
+        <h2 className="mt-2 font-display text-2xl font-bold text-forest-900 dark:text-white">
           Sign in to Scholar&apos;s Hub
         </h2>
       </div>
@@ -113,8 +113,8 @@ export default function LoginPage() {
             className={[
               "flex-1 rounded-lg py-2 text-xs font-semibold transition-colors",
               role === value
-                ? "bg-forest-700 text-sand-100"
-                : "text-forest-900/60 hover:text-forest-900",
+                ? "bg-[#16a34a] text-white shadow-sm"
+                : "text-forest-900/60 hover:text-forest-900 dark:text-[#a1a1aa] dark:hover:text-white",
             ].join(" ")}
           >
             {label}
@@ -134,7 +134,7 @@ export default function LoginPage() {
             autoComplete="email"
             placeholder="john@gmail.com"
             className={[
-              "h-11 rounded-xl border bg-white px-3 text-sm text-forest-900",
+              "h-11 rounded-xl border bg-white dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46] px-3 text-sm text-forest-900",
               "outline-none transition focus:ring-2 focus:ring-forest-700/30",
               errors.email
                 ? "border-red-400 focus:border-red-500"
@@ -169,7 +169,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={isSubmitting}
-          className="mt-1 flex h-11 w-full items-center justify-center gap-2 rounded-full bg-forest-700 text-sm font-semibold text-sand-100 transition hover:bg-forest-900 disabled:opacity-60"
+          className="mt-1 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#16a34a] text-sm font-semibold text-white shadow-md shadow-[#16a34a]/20 transition hover:bg-[#15803d] disabled:opacity-60"
         >
           {isSubmitting && (
             <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-sand-100/40 border-t-sand-100" />
@@ -180,7 +180,7 @@ export default function LoginPage() {
 
       <p className="text-sm text-forest-900/70">
         Don&apos;t have an account?{" "}
-        <Link href="/auth/signup" className="font-semibold text-forest-900 hover:underline">
+        <Link href="/auth/signup" className="font-semibold text-[#16a34a] hover:underline">
           Sign up
         </Link>
       </p>

@@ -24,7 +24,7 @@ import { Modal } from "@/components/ui/modal";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+// --- Types --------------------------------------------------------------------
 
 type ActiveBooking = {
   _id: string;
@@ -57,7 +57,7 @@ type Stats = {
   notifications: Notification[];
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 function greeting() {
   const h = new Date().getHours();
@@ -82,7 +82,7 @@ function totalDays(start: string, end: string) {
   );
 }
 
-// ─── Active Booking Card ──────────────────────────────────────────────────────
+// --- Active Booking Card ------------------------------------------------------
 
 /**
  * Renewing used to drop the student on the public library page with nothing
@@ -206,7 +206,7 @@ function ActiveBookingCard({
   );
 }
 
-// ─── Stat card ────────────────────────────────────────────────────────────────
+// --- Stat card ----------------------------------------------------------------
 
 function StatCard({
   icon: Icon,
@@ -241,7 +241,7 @@ function StatCard({
   );
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// --- Page ---------------------------------------------------------------------
 
 export default function StudentOverviewPage() {
   const { user } = useAuth();

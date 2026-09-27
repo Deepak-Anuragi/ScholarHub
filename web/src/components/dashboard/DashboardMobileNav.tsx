@@ -72,7 +72,7 @@ export function DashboardMobileNav({
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-line bg-white/95 backdrop-blur-sm lg:hidden"
+        className="fixed bottom-0 left-0 right-0 z-40 flex border-t border-line bg-white/95 dark:bg-[#111113] dark:border-[#27272a] backdrop-blur-sm lg:hidden"
         aria-label="Mobile navigation"
       >
         {barItems.map((item) => (
@@ -110,7 +110,7 @@ export function DashboardMobileNav({
       </nav>
 
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="bottom" className="rounded-t-3xl bg-white lg:hidden">
+        <SheetContent side="bottom" className="rounded-t-3xl bg-white dark:bg-[#18181b] dark:border-[#27272a] lg:hidden">
           <SheetHeader>
             <SheetTitle className="text-forest-900">{title}</SheetTitle>
           </SheetHeader>
@@ -128,7 +128,7 @@ export function DashboardMobileNav({
                     "relative flex flex-col items-center gap-1.5 rounded-2xl border px-2 py-3 text-center text-xs font-medium transition-colors",
                     active
                       ? "border-[#16a34a] bg-[#16a34a] text-white"
-                      : "border-line text-forest-900/70 hover:bg-sage-100"
+                      : "border-line text-forest-900/70 hover:bg-sage-100 dark:border-[#27272a] dark:text-[#a1a1aa] dark:hover:bg-[#27272a]"
                   )}
                 >
                   <Icon className="size-5 shrink-0" aria-hidden />

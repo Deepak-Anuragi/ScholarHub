@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { getFacilityIcon } from "@/lib/facility-icons";
 import { cn } from "@/lib/utils";
 
-// ─── Types ───────────────────────────────────────────────────────────────────
+// --- Types -------------------------------------------------------------------
 
 type Photo = {
   url: string;
@@ -77,7 +77,7 @@ type LibraryDetailClientProps = {
   initialReviewTotal: number;
 };
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// --- Helpers ------------------------------------------------------------------
 
 function getInitials(name: string): string {
   return name
@@ -115,7 +115,7 @@ function StarRating({ rating, size = "sm" }: { rating: number; size?: "sm" | "lg
   );
 }
 
-// ─── Photo gallery ─────────────────────────────────────────────────────────
+// --- Photo gallery ---------------------------------------------------------
 
 function PhotoGallery({ photos, libraryName }: { photos: Photo[]; libraryName: string }) {
   const sorted = [...photos].sort((a, b) => a.order - b.order);
@@ -212,7 +212,7 @@ function PhotoGallery({ photos, libraryName }: { photos: Photo[]; libraryName: s
   );
 }
 
-// ─── Rating breakdown bars ────────────────────────────────────────────────────
+// --- Rating breakdown bars ----------------------------------------------------
 
 function RatingBars({ reviews }: { reviews: ReviewData[] }) {
   const counts = [5, 4, 3, 2, 1].map((star) => ({
@@ -240,7 +240,7 @@ function RatingBars({ reviews }: { reviews: ReviewData[] }) {
   );
 }
 
-// ─── Main client component ────────────────────────────────────────────────────
+// --- Main client component ----------------------------------------------------
 
 export function LibraryDetailClient({
   library,
@@ -302,7 +302,7 @@ export function LibraryDetailClient({
   return (
     <>
       <div className="grid gap-8 lg:grid-cols-[1.15fr_0.85fr]">
-        {/* ── Left column ─────────────────────────────────────────────────── */}
+        {/* -- Left column --------------------------------------------------- */}
         <div className="space-y-6">
           {/* Photo gallery */}
           <AnimatedContent distance={20} duration={0.5} threshold={0}>
@@ -579,7 +579,7 @@ export function LibraryDetailClient({
           )}
         </div>
 
-        {/* ── Right column — sticky booking card ─────────────────────────── */}
+        {/* -- Right column — sticky booking card --------------------------- */}
         <aside>
           <div className="sticky top-[calc(var(--header-height)+1.5rem)]">
             <AnimatedContent
@@ -692,7 +692,7 @@ export function LibraryDetailClient({
         </aside>
       </div>
 
-      {/* ── Reviews section ──────────────────────────────────────────────── */}
+      {/* -- Reviews section ------------------------------------------------ */}
       <section className="mt-12" id="reviews">
         <AnimatedContent distance={20} duration={0.5} threshold={0.05}>
           <div className="flex items-end justify-between">
