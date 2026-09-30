@@ -6,6 +6,16 @@ export interface ILibraryPhoto {
   order: number;
 }
 
+export type BlockedDateType = "HOLIDAY" | "MAINTENANCE";
+
+export interface IBlockedDate extends Document {
+  _id: Types.ObjectId;
+  start: Date;
+  end: Date;
+  type: BlockedDateType;
+  note?: string;
+}
+
 export interface ILibrary extends Document {
   ownerId: Types.ObjectId;
   name: string;
@@ -26,6 +36,9 @@ export interface ILibrary extends Document {
   monthlyFee: number;
   quarterlyFee?: number;
   annualFee?: number;
+  openTime?: string;
+  closeTime?: string;
+  blockedDates: IBlockedDate[];
   facilities: string[];
   studentTypes: string[];
   photos: ILibraryPhoto[];
@@ -47,6 +60,16 @@ const LibraryPhotoSchema = new Schema<ILibraryPhoto>(
     order:   { type: Number, default: 0 },
   },
   { _id: false }
+);
+
+const BlockedDateSchema = new Schema<IBlockedDate>(
+  {
+    start: { type: Date, required: true },
+    end:   { type: Date, required: true },
+    type:  { type: String, enum: ["HOLIDAY", "MAINTENANCE"], required: true },
+    note:  { type: String },
+  },
+  { _id: true }
 );
 
 const LibrarySchema = new Schema<ILibrary>(
@@ -77,6 +100,9 @@ const LibrarySchema = new Schema<ILibrary>(
     monthlyFee:     { type: Number, required: true },
     quarterlyFee:   { type: Number },
     annualFee:      { type: Number },
+    openTime:       { type: String },
+    closeTime:      { type: String },
+    blockedDates:   [BlockedDateSchema],
     facilities:     [{ type: String }],
     studentTypes:   [{ type: String }],
     photos:         [LibraryPhotoSchema],

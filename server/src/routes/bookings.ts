@@ -32,11 +32,27 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
     const library = await LibraryModel.findById(libraryId);
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
 
+    let slot: InstanceType<typeof SlotModel> | null = null;
     if (slotId) {
-      const slot = await SlotModel.findById(slotId);
+      slot = await SlotModel.findById(slotId);
       if (!slot || slot.availableSeats <= 0) {
         res.status(409).json({ error: "Selected slot is full. Please choose another slot or join the waitlist." });
         return;
+      }
+    }
+
+    // AC-SM-4: Reject bookings that start inside any blocked date range
+    const bookingStartMs = new Date(startDate).getTime();
+    if (Array.isArray(library.blockedDates) && library.blockedDates.length > 0) {
+      for (const bd of library.blockedDates) {
+        const s = new Date(bd.start).getTime();
+        const e = new Date(bd.end).getTime();
+        if (bookingStartMs >= s && bookingStartMs <= e) {
+          res.status(409).json({
+            error: `Library is blocked from ${new Date(s).toISOString().slice(0, 10)} to ${new Date(e).toISOString().slice(0, 10)} (${bd.type}${bd.note ? `: ${bd.note}` : ""}). Please pick another start date.`,
+          });
+          return;
+        }
       }
     }
 
@@ -62,8 +78,17 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
     const start = new Date(startDate);
     const end = plan === "QUARTERLY" ? addMonths(start, 3) : plan === "ANNUAL" ? addMonths(start, 12) : addMonths(start, 1);
 
-    const planFee = plan === "QUARTERLY" ? (library.quarterlyFee ?? library.monthlyFee * 3)
-      : plan === "ANNUAL" ? (library.annualFee ?? library.monthlyFee * 12) : library.monthlyFee;
+    // AC-SM-2: Prefer slot-level pricing, fall back to library-level
+    const slotFees = slot
+      ? { monthlyFee: slot.monthlyFee, quarterlyFee: slot.quarterlyFee, annualFee: slot.annualFee }
+      : null;
+    const monthlyBase = slotFees?.monthlyFee ?? library.monthlyFee;
+    const planFee =
+      plan === "QUARTERLY"
+        ? (slotFees?.quarterlyFee ?? library.quarterlyFee ?? monthlyBase * 3)
+        : plan === "ANNUAL"
+          ? (slotFees?.annualFee ?? library.annualFee ?? monthlyBase * 12)
+          : monthlyBase;
     const { libraryFee, platformFee, total: baseTotal } = priceBooking(planFee);
 
     // Task 16.4 — Apply referral discount (Req 11.4, 11.5)
