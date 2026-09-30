@@ -20,6 +20,14 @@ const ALL_STUDENT_TYPES = ["Govt Exam","Entrance Exam","School","Professional"];
 
 type Photo = { url: string; isCover: boolean; order: number };
 
+type BlockedDate = {
+  _id: string;
+  start: string;
+  end: string;
+  type: "HOLIDAY" | "MAINTENANCE";
+  note?: string;
+};
+
 /** What GET /owner/library/photos/signature returns. */
 type UploadSignature = {
   uploadUrl: string;
@@ -43,6 +51,9 @@ type Library = {
   monthlyFee: number;
   quarterlyFee?: number;
   annualFee?: number;
+  openTime?: string;
+  closeTime?: string;
+  blockedDates: BlockedDate[];
   facilities: string[];
   studentTypes: string[];
   photos: Photo[];
@@ -99,6 +110,14 @@ export default function OwnerLibraryPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const [bdStart, setBdStart] = useState("");
+  const [bdEnd, setBdEnd] = useState("");
+  const [bdType, setBdType] = useState<"HOLIDAY" | "MAINTENANCE">("HOLIDAY");
+  const [bdNote, setBdNote] = useState("");
+
+  const fmtDate = (s: string) =>
+    new Date(s).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+
   const load = useCallback(() => {
     setLoading(true);
     setError(null);
@@ -106,8 +125,12 @@ export default function OwnerLibraryPage() {
       .get<{ library: Library | null }>("/owner/library")
       .then((d) => {
         if (d.library) {
-          setLib(d.library);
-          setForm(d.library);
+          const libData: Library = {
+            ...d.library,
+            blockedDates: d.library.blockedDates ?? [],
+          };
+          setLib(libData);
+          setForm(libData);
         }
       })
       .catch((err: unknown) =>
@@ -149,6 +172,56 @@ export default function OwnerLibraryPage() {
       setError(err instanceof Error ? err.message : "Could not save your changes.");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleAddBlockedDate = async () => {
+    if (!bdStart || !bdEnd) return;
+    setError(null);
+    try {
+      const d = await api.post<{ entry?: BlockedDate }>("/owner/library/blocked-dates", {
+        start: bdStart,
+        end: bdEnd,
+        type: bdType,
+        note: bdNote || undefined,
+      });
+      if (d.entry) {
+        setLib((prev) =>
+          prev
+            ? { ...prev, blockedDates: [...prev.blockedDates, d.entry as BlockedDate] }
+            : prev
+        );
+        setForm((prev) => ({
+          ...prev,
+          blockedDates: prev.blockedDates
+            ? [...prev.blockedDates, d.entry as BlockedDate]
+            : [d.entry as BlockedDate],
+        }));
+        setBdStart("");
+        setBdEnd("");
+        setBdType("HOLIDAY");
+        setBdNote("");
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not add blocked date.");
+    }
+  };
+
+  const handleDeleteBlockedDate = async (id: string) => {
+    setError(null);
+    try {
+      await api.delete(`/owner/library/blocked-dates/${id}`);
+      setLib((prev) =>
+        prev
+          ? { ...prev, blockedDates: prev.blockedDates.filter((b) => b._id !== id) }
+          : prev
+      );
+      setForm((prev) => ({
+        ...prev,
+        blockedDates: prev.blockedDates?.filter((b) => b._id !== id),
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not delete blocked date.");
     }
   };
 
@@ -330,6 +403,100 @@ export default function OwnerLibraryPage() {
               <Field label="Monthly (₹)" name="monthlyFee" type="number" value={form.monthlyFee ?? 0} onChange={set} />
               <Field label="Quarterly (₹)" name="quarterlyFee" type="number" value={form.quarterlyFee ?? 0} onChange={set} />
               <Field label="Annual (₹)" name="annualFee" type="number" value={form.annualFee ?? 0} onChange={set} />
+            </div>
+          </Section>
+        </AnimatedContent>
+
+        {/* Timings & Holidays */}
+        <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.095}>
+          <Section title="Timings & Holidays">
+            <p className="mb-3 text-sm font-semibold text-forest-900">Operating Hours</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field label="Opening Time" name="openTime" type="time" value={form.openTime ?? ""} onChange={set} />
+              <Field label="Closing Time" name="closeTime" type="time" value={form.closeTime ?? ""} onChange={set} />
+            </div>
+
+            <p className="mt-6 mb-3 text-sm font-semibold text-forest-900">Blocked Dates / Holidays</p>
+
+            <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto_auto]">
+              <input
+                type="date"
+                name="bdStart"
+                value={bdStart}
+                onChange={(e) => setBdStart(e.target.value)}
+                className="h-10 rounded-xl border border-line bg-sage-100/40 px-3 text-sm text-forest-900 outline-none transition focus:border-forest-700"
+                placeholder="Start date"
+              />
+              <input
+                type="date"
+                name="bdEnd"
+                value={bdEnd}
+                onChange={(e) => setBdEnd(e.target.value)}
+                className="h-10 rounded-xl border border-line bg-sage-100/40 px-3 text-sm text-forest-900 outline-none transition focus:border-forest-700"
+                placeholder="End date"
+              />
+              <select
+                name="bdType"
+                value={bdType}
+                onChange={(e) => setBdType(e.target.value as "HOLIDAY" | "MAINTENANCE")}
+                className="h-10 rounded-xl border border-line bg-sage-100/40 px-3 text-sm text-forest-900 outline-none transition focus:border-forest-700"
+              >
+                <option value="HOLIDAY">HOLIDAY</option>
+                <option value="MAINTENANCE">MAINTENANCE</option>
+              </select>
+              <Button
+                size="sm"
+                onClick={handleAddBlockedDate}
+                className="bg-forest-700 text-white hover:bg-forest-900"
+              >
+                Add Block
+              </Button>
+            </div>
+            <input
+              type="text"
+              name="bdNote"
+              value={bdNote}
+              onChange={(e) => setBdNote(e.target.value)}
+              placeholder="Note (optional)"
+              className="mt-2 h-10 w-full rounded-xl border border-line bg-sage-100/40 px-3 text-sm text-forest-900 outline-none transition focus:border-forest-700"
+            />
+
+            <div className="mt-4 space-y-2">
+              {(lib.blockedDates ?? []).map((entry) => (
+                <div
+                  key={entry._id}
+                  className="rounded-2xl border border-line bg-sage-100/40 p-3"
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className={cn(
+                          "rounded-full px-2 py-0.5 text-[10px] font-bold",
+                          entry.type === "HOLIDAY"
+                            ? "bg-red-100 text-red-700"
+                            : "bg-amber-100 text-amber-700"
+                        )}
+                      >
+                        {entry.type}
+                      </span>
+                      <span className="text-sm text-forest-900">
+                        {fmtDate(entry.start)} → {fmtDate(entry.end)}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => void handleDeleteBlockedDate(entry._id)}
+                      className="flex size-7 items-center justify-center rounded-lg text-red-500 hover:bg-red-50"
+                      title="Delete blocked date"
+                    >
+                      <Trash2 className="size-4" />
+                    </button>
+                  </div>
+                  {entry.note && (
+                    <p className="mt-1.5 text-xs text-forest-900/60">{entry.note}</p>
+                  )}
+                </div>
+              ))}
             </div>
           </Section>
         </AnimatedContent>

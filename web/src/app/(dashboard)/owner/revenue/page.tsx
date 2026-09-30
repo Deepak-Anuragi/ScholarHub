@@ -1,11 +1,14 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
-  CartesianGrid, PieChart, Pie, Cell, Legend,
+  CartesianGrid, PieChart, Pie, Cell, Legend, LineChart, Line,
 } from "recharts";
-import { TrendingUp } from "lucide-react";
+import {
+  TrendingUp, Users, FileSpreadsheet, FileDown, Loader2,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
@@ -36,21 +39,77 @@ type RevenueData = {
   lastMonth: number;
 };
 
+type OccupancyDay = { date: string; occupancyPct: number };
+type RetentionMonth = { month: string; ratePct: number };
+type RetentionData = { ratePct: number; history: RetentionMonth[] };
+
+const RevenueReportPDF = React.lazy(() =>
+  import('@/components/revenue/RevenueReportPDF').then(m => ({ default: m.RevenueReportPDF }))
+);
+
+function LazyPdfExportButton({
+  data, retention, loading, setLoading
+}: {
+  data: RevenueData | null;
+  retention: RetentionData | null;
+  loading: boolean;
+  setLoading: (b: boolean) => void;
+}) {
+  const [ready, setReady] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  return (
+    <>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => { setLoading(true); setErr(null); setReady(true); }}
+        disabled={loading || !data}
+      >
+        {loading ? <Loader2 className="size-3.5 animate-spin" /> : <FileDown className="size-3.5" />}
+        Export PDF
+      </Button>
+      {ready && data && (
+        <div style={{ display: 'none' }}>
+          <React.Suspense fallback={<></>}>
+            <RevenueReportPDF
+              data={data}
+              retention={retention}
+              onError={(e) => { setLoading(false); setErr(e); }}
+              onReady={() => { setLoading(false); }}
+            />
+          </React.Suspense>
+        </div>
+      )}
+      {err && <p className="text-xs text-red-600">{err}</p>}
+    </>
+  );
+}
+
 export default function RevenuePage() {
   const [data, setData] = useState<RevenueData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [occupancy, setOccupancy] = useState<OccupancyDay[] | null>(null);
+  const [retention, setRetention] = useState<RetentionData | null>(null);
+  const [pdfLoading, setPdfLoading] = useState(false);
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     setLoading(true);
     setError(null);
-    api
-      .get<RevenueData>("/owner/revenue")
-      .then(setData)
-      .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Something went wrong.")
-      )
-      .finally(() => setLoading(false));
+    try {
+      const [rev, occ, ret] = await Promise.all([
+        api.get<RevenueData>('/owner/revenue'),
+        api.get<{ occupancy?: OccupancyDay[] }>('/owner/analytics/occupancy').catch(() => ({ occupancy: [] })),
+        api.get<RetentionData>('/owner/analytics/retention').catch(() => ({ ratePct: 0, history: [] })),
+      ]);
+      setData(rev);
+      setOccupancy(occ.occupancy ?? []);
+      setRetention(ret);
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Something went wrong.");
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -83,33 +142,55 @@ export default function RevenuePage() {
 
       {/* Summary cards */}
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.05}>
-        <div className="mb-6 grid gap-4 sm:grid-cols-3">
+        <div className="mb-6 grid gap-4 sm:grid-cols-4">
           {[
-            { label: "All Time", value: data?.allTime ?? 0, shine: false },
-            { label: "This Month", value: data?.thisMonth ?? 0, shine: true },
-            { label: "Last Month", value: data?.lastMonth ?? 0, shine: false },
-          ].map(({ label, value, shine }) => (
+            { label: "All Time", value: data?.allTime ?? 0, shine: false, retention: false },
+            { label: "This Month", value: data?.thisMonth ?? 0, shine: true, retention: false },
+            { label: "Last Month", value: data?.lastMonth ?? 0, shine: false, retention: false },
+            { label: "Retention", value: null as unknown as number, shine: false, retention: true },
+          ].map(({ label, value, shine, retention: isRetention }) => (
             <div
               key={label}
               className="rounded-card border border-line bg-white p-5 shadow-soft"
             >
-              <div className="flex items-center gap-2 text-sm text-forest-900/60">
-                <TrendingUp className="size-4 text-forest-700" />
-                {shine ? (
-                  <ShinyText
-                    text={label}
-                    color="#4a7c2a"
-                    shineColor="#86efac"
-                    speed={3}
-                    className="font-semibold"
-                  />
-                ) : (
-                  <span className="font-semibold">{label}</span>
-                )}
-              </div>
-              <p className="mt-2 text-3xl font-bold text-forest-900">
-                ₹<CountUp end={value} duration={1.2} />
-              </p>
+              {isRetention ? (
+                <>
+                  <div className="flex items-center gap-2 text-sm text-forest-900/60">
+                    <Users className="size-4 text-forest-700" />
+                    <span className="font-semibold">Retention</span>
+                  </div>
+                  <p className="mt-2 text-3xl font-bold text-forest-900">{retention?.ratePct ?? 0}%</p>
+                  {(retention?.history?.length ?? 0) > 0 && (
+                    <div className="mt-3 h-10 w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={retention!.history}>
+                          <Line type="monotone" dataKey="ratePct" stroke="#16a34a" strokeWidth={2} dot={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-2 text-sm text-forest-900/60">
+                    <TrendingUp className="size-4 text-forest-700" />
+                    {shine ? (
+                      <ShinyText
+                        text={label}
+                        color="#4a7c2a"
+                        shineColor="#86efac"
+                        speed={3}
+                        className="font-semibold"
+                      />
+                    ) : (
+                      <span className="font-semibold">{label}</span>
+                    )}
+                  </div>
+                  <p className="mt-2 text-3xl font-bold text-forest-900">
+                    ₹<CountUp end={value} duration={1.2} />
+                  </p>
+                </>
+              )}
             </div>
           ))}
         </div>
@@ -192,11 +273,65 @@ export default function RevenuePage() {
         </AnimatedContent>
       </div>
 
-      {/* Payout ledger table */}
+      {/* Occupancy chart */}
       <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.18}>
+        <div className="mb-6 overflow-hidden rounded-card border border-line bg-white p-5 shadow-soft">
+          <p className="mb-4 text-sm font-semibold text-forest-900">Occupancy Rate (Last 30 Days)</p>
+          {loading || !occupancy || occupancy.length === 0 ? (
+            <div className="flex h-48 items-center justify-center text-sm text-forest-900/40">
+              {loading ? "Loading…" : "No data yet."}
+            </div>
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={occupancy} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#d6e2d3" vertical={false} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fontSize: 10, fill: '#253b1c99' }}
+                  axisLine={false}
+                  tickLine={false}
+                  interval={4}
+                  tickFormatter={(v: string) => v.slice(5)}
+                />
+                <YAxis
+                  tick={{ fontSize: 11, fill: '#253b1c99' }}
+                  axisLine={false}
+                  tickLine={false}
+                  domain={[0, 100]}
+                  tickFormatter={(v: number) => `${v}%`}
+                />
+                <Tooltip
+                  formatter={(v) => [`${Number(v ?? 0)}%`, "Occupancy"]}
+                  labelFormatter={(l) => `Date: ${String(l ?? '')}`}
+                  contentStyle={{ borderRadius: 12, border: '1px solid #d6e2d3', fontSize: 12 }}
+                />
+                <Bar dataKey="occupancyPct" fill="#16a34a" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </AnimatedContent>
+
+      {/* Payout ledger table */}
+      <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.2}>
         <div className="overflow-hidden rounded-card border border-line bg-white shadow-soft">
-          <div className="border-b border-line px-5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-3">
             <p className="text-sm font-semibold text-forest-900">Payout Ledger</p>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => window.open('/api/owner/revenue/export.csv', '_blank')}
+              >
+                <FileSpreadsheet className="size-3.5" /> Export CSV
+              </Button>
+              <LazyPdfExportButton
+                data={data}
+                retention={retention}
+                loading={pdfLoading}
+                setLoading={setPdfLoading}
+              />
+            </div>
           </div>
           {error ? (
             <DataError message={error} onRetry={load} />

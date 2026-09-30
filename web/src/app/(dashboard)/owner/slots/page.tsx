@@ -17,10 +17,13 @@ type Slot = {
   endTime: string;
   totalSeats: number;
   availableSeats: number;
+  monthlyFee?: number;
+  quarterlyFee?: number;
+  annualFee?: number;
 };
 
 type SlotForm = Omit<Slot, "_id">;
-const EMPTY: SlotForm = { name: "", startTime: "", endTime: "", totalSeats: 0, availableSeats: 0 };
+const EMPTY: SlotForm = { name: "", startTime: "", endTime: "", totalSeats: 0, availableSeats: 0, monthlyFee: 0, quarterlyFee: 0, annualFee: 0 };
 
 function SlotModal({
   initial,
@@ -38,7 +41,7 @@ function SlotModal({
   );
 
   const set = (k: keyof SlotForm, v: string) =>
-    setForm((p) => ({ ...p, [k]: ["totalSeats", "availableSeats"].includes(k) ? Number(v) : v }));
+    setForm((p) => ({ ...p, [k]: ["totalSeats", "availableSeats", "monthlyFee", "quarterlyFee", "annualFee"].includes(k) ? Number(v) : v }));
 
   return (
     <Modal
@@ -56,6 +59,9 @@ function SlotModal({
               { label: "End Time (e.g. 12:00 PM)", key: "endTime" as const, type: "text" },
               { label: "Total Seats", key: "totalSeats" as const, type: "number" },
               { label: "Available Seats", key: "availableSeats" as const, type: "number" },
+              { label: "Monthly Fee (₹)", key: "monthlyFee" as const, type: "number" },
+              { label: "Quarterly Fee (₹)", key: "quarterlyFee" as const, type: "number" },
+              { label: "Annual Fee (₹)", key: "annualFee" as const, type: "number" },
             ] as { label: string; key: keyof SlotForm; type: string }[]
           ).map(({ label, key, type }) => (
             <label key={key} className="grid gap-1.5 text-sm font-semibold text-forest-900">
@@ -177,6 +183,9 @@ export default function SlotsPage() {
                       <th className="px-5 py-3">Time</th>
                       <th className="px-5 py-3">Total</th>
                       <th className="px-5 py-3">Available</th>
+                      <th className="px-5 py-3">Monthly (₹)</th>
+                      <th className="px-5 py-3">Quarterly (₹)</th>
+                      <th className="px-5 py-3">Annual (₹)</th>
                       <th className="px-5 py-3"></th>
                     </tr>
                   </thead>
@@ -220,6 +229,15 @@ export default function SlotsPage() {
                                 />
                               </div>
                             </div>
+                          </td>
+                          <td className="px-5 py-3 text-forest-900/70">
+                            {slot.monthlyFee ?? "—"}
+                          </td>
+                          <td className="px-5 py-3 text-forest-900/70">
+                            {slot.quarterlyFee ?? "—"}
+                          </td>
+                          <td className="px-5 py-3 text-forest-900/70">
+                            {slot.annualFee ?? "—"}
                           </td>
                           <td className="px-5 py-3">
                             <div className="flex items-center gap-2">
