@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AnimatedGrid } from "@/components/AnimatedList";
 import { LibraryCard } from "@/components/library/LibraryCard";
 import { LibraryResultsSkeleton } from "@/components/library/LibraryCardSkeleton";
+import { NearMeButton } from "@/components/library/NearMeButton";
 import { Button } from "@/components/ui/button";
 import { useDebouncedValue } from "@/hooks/useDebouncedValue";
 import { api } from "@/lib/api";
@@ -30,6 +31,26 @@ import { cn } from "@/lib/utils";
 const fetchLibraries = async (
   params: LibraryFilters
 ): Promise<LibrariesResult> => {
+  // When geo coords are present, use the /map endpoint (Req 1.11–1.12)
+  if (params.lat !== undefined && params.lng !== undefined) {
+    const query = new URLSearchParams();
+    query.set("lat", String(params.lat));
+    query.set("lng", String(params.lng));
+    query.set("radius", String(params.radius ?? 10));
+    if (params.examType) query.set("exam_type", params.examType);
+    if (params.availableOnly) query.set("available_only", "true");
+    const data = await api.get<{ libraries: LibrariesResult["libraries"] }>(
+      `/libraries/map?${query.toString()}`
+    );
+    const libraries = data.libraries ?? [];
+    return {
+      libraries,
+      total: libraries.length,
+      page: 1,
+      totalPages: 1,
+    };
+  }
+
   const query = buildLibraryQuery({ ...params, limit: 12 });
   const data = await api.get<LibrariesResult>(`/libraries?${query}`);
   return data;
@@ -45,13 +66,16 @@ export function LibrariesExplorer() {
     [searchParams]
   );
 
-  const [draft, setDraft] = useState<LibraryFilters>(urlFilters);
+  const [draft, setDraft] = useState<LibraryFilters>(() => urlFilters);
   const [states, setStates] = useState<string[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
   const [result, setResult] = useState<LibrariesResult | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Whether the Near Me geo filter is currently active (Req 1.11)
+  const isNearMeActive = urlFilters.lat !== undefined && urlFilters.lng !== undefined;
 
   const filterSnapshot = useMemo(
     () => ({
@@ -64,6 +88,9 @@ export function LibrariesExplorer() {
       examType: draft.examType,
       availableOnly: draft.availableOnly,
       minRating: draft.minRating,
+      lat: draft.lat,
+      lng: draft.lng,
+      radius: draft.radius,
     }),
     [
       draft.state,
@@ -75,6 +102,9 @@ export function LibrariesExplorer() {
       draft.examType,
       draft.availableOnly,
       draft.minRating,
+      draft.lat,
+      draft.lng,
+      draft.radius,
     ]
   );
   const debouncedFilters = useDebouncedValue(filterSnapshot, 300);
@@ -94,9 +124,30 @@ export function LibrariesExplorer() {
     [pathname, router]
   );
 
+  // If urlFilters change (e.g. browser back), sync back to draft when they diverge.
   useEffect(() => {
-    setDraft(urlFilters);
-  }, [urlFilters]);
+    const next = filtersFromSearchParams(searchParams);
+    const snap = draft;
+    const same =
+      snap.state === next.state &&
+      snap.district === next.district &&
+      snap.city === next.city &&
+      snap.feeMin === next.feeMin &&
+      snap.feeMax === next.feeMax &&
+      snap.facilities.length === next.facilities.length &&
+      snap.facilities.every((f, i) => f === next.facilities[i]) &&
+      snap.examType === next.examType &&
+      snap.availableOnly === next.availableOnly &&
+      snap.minRating === next.minRating &&
+      snap.sort === next.sort &&
+      snap.view === next.view &&
+      snap.page === next.page &&
+      snap.lat === next.lat &&
+      snap.lng === next.lng &&
+      snap.radius === next.radius;
+    if (same) return;
+    queueMicrotask(() => setDraft(next));
+  }, [searchParams, draft]);
 
   // Debounce syncing of draft filters to URL
   useEffect(() => {
@@ -123,6 +174,8 @@ export function LibrariesExplorer() {
     let cancelled = false;
 
     async function load() {
+      await Promise.resolve();
+      if (cancelled) return;
       setLoading(true);
       setError(null);
       try {
@@ -148,22 +201,24 @@ export function LibrariesExplorer() {
 
   // Cascading districts when state changes
   useEffect(() => {
-    if (!draft.state) {
-      setDistricts([]);
+    const state = draft.state;
+    if (!state) {
+      queueMicrotask(() => setDistricts([]));
       return;
     }
-    void fetchLocations(draft.state).then((data) =>
+    void fetchLocations(state).then((data) =>
       setDistricts(data.districts ?? [])
     );
   }, [draft.state]);
 
   // Cascading cities when state and district are selected
   useEffect(() => {
-    if (!draft.state || !draft.district) {
-      setCities([]);
+    const { state, district } = draft;
+    if (!state || !district) {
+      queueMicrotask(() => setCities([]));
       return;
     }
-    void fetchLocations(draft.state, draft.district).then((data) =>
+    void fetchLocations(state, district).then((data) =>
       setCities(data.cities ?? [])
     );
   }, [draft.state, draft.district]);
@@ -204,6 +259,34 @@ export function LibrariesExplorer() {
     setDraft(DEFAULT_FILTERS);
     updateUrl(DEFAULT_FILTERS);
   };
+
+  // Near Me handlers — Requirement 1.11, 1.13
+  const handleNearMeLocation = useCallback(
+    (coords: { lat: number; lng: number; radius: number }) => {
+      const next: LibraryFilters = {
+        ...draft,
+        lat: coords.lat,
+        lng: coords.lng,
+        radius: coords.radius,
+        page: 1,
+      };
+      setDraft(next);
+      updateUrl(next, true);
+    },
+    [draft, updateUrl]
+  );
+
+  const handleNearMeClear = useCallback(() => {
+    const next: LibraryFilters = {
+      ...draft,
+      lat: undefined,
+      lng: undefined,
+      radius: undefined,
+      page: 1,
+    };
+    setDraft(next);
+    updateUrl(next, true);
+  }, [draft, updateUrl]);
 
   const locationLabel =
     urlFilters.city || urlFilters.district || urlFilters.state || "India";
@@ -295,6 +378,23 @@ export function LibrariesExplorer() {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              {/* Near Me — Requirement 1.11, 1.13 */}
+              <div className="grid gap-2">
+                <p className="text-sm font-semibold text-forest-900">
+                  Near Me
+                </p>
+                <NearMeButton
+                  onLocation={handleNearMeLocation}
+                  onClear={handleNearMeClear}
+                  isActive={isNearMeActive}
+                />
+                {isNearMeActive && (
+                  <p className="text-xs text-forest-900/60">
+                    Showing libraries within {urlFilters.radius ?? 10} km of your location
+                  </p>
+                )}
               </div>
 
               <div className="grid gap-2">

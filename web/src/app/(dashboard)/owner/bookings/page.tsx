@@ -53,7 +53,7 @@ export default function OwnerBookingsPage() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const filtered = bookings.filter((b) => {

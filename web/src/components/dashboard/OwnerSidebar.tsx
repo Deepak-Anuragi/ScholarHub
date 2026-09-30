@@ -127,7 +127,7 @@ export function OwnerSidebar() {
             <BookOpen className="size-5" aria-hidden />
           </div>
           <div>
-            <p className="text-sm font-bold text-forest-900">Scholar's Hub</p>
+            <p className="text-sm font-bold text-forest-900">Scholar&rsquo;s Hub</p>
             <p className="text-[11px] text-forest-900/50">Owner Portal</p>
           </div>
         </div>

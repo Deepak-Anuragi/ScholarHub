@@ -54,7 +54,7 @@ export default function AdminRevenuePage() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const handleMarkPaid = async (id: string) => {

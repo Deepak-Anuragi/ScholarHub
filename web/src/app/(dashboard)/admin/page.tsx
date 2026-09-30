@@ -92,7 +92,7 @@ export default function AdminOverviewPage() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const revenueData = (stats?.revenueChart ?? []).map((d) => ({

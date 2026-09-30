@@ -6,7 +6,6 @@ import {
   Send,
   CheckCheck,
   Check,
-  User,
   MessageSquare,
   ArrowLeft,
   Circle,
@@ -84,19 +83,26 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
 
   // Load threads on mount
   useEffect(() => {
+    let cancelled = false;
     setLoadingThreads(true);
     api
       .get<{ threads?: Thread[] }>("/chat/threads")
       .then((res) => {
+        if (cancelled) return;
         const list = res.threads ?? [];
         setThreads(list);
-        if (list.length > 0 && !activeOtherId) {
-          setActiveOtherId(list[0].otherId);
-          setActiveUser(list[0].otherUser);
+        if (list.length > 0) {
+          setActiveOtherId((prev) => prev ?? list[0].otherId);
+          setActiveUser((prev) => prev ?? list[0].otherUser);
         }
       })
       .catch((err) => console.error("Failed to load threads:", err))
-      .finally(() => setLoadingThreads(false));
+      .finally(() => {
+        if (!cancelled) setLoadingThreads(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // When activeOtherId changes, load messages and join socket room

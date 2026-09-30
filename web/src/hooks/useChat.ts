@@ -15,7 +15,7 @@ export function useChat(currentUserId?: string, token?: string) {
   const socketRef = useRef<Socket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isTyping, setIsTyping] = useState(false);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000";
@@ -99,6 +99,6 @@ export function useChat(currentUserId?: string, token?: string) {
     sendMessage,
     sendTyping,
     markRead,
-    socket: socketRef.current,
+    socketRef,
   };
 }

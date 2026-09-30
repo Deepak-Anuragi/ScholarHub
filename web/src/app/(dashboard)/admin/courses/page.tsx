@@ -132,7 +132,7 @@ export default function AdminCoursesPage() {
   }, []);
 
   useEffect(() => {
-    load();
+    queueMicrotask(load);
   }, [load]);
 
   const handleSave = async (data: CourseInput) => {

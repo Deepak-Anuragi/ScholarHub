@@ -49,6 +49,10 @@ export type LibraryFilters = {
   sort: LibrarySort;
   view: "grid" | "list";
   page: number;
+  // Geolocation — populated by the NearMe feature (Req 1.11–1.13)
+  lat?: number;
+  lng?: number;
+  radius?: number;
 };
 
 export const DEFAULT_FILTERS: LibraryFilters = {
@@ -69,6 +73,10 @@ export const DEFAULT_FILTERS: LibraryFilters = {
 export function filtersFromSearchParams(
   params: URLSearchParams
 ): LibraryFilters {
+  const latRaw = params.get("lat");
+  const lngRaw = params.get("lng");
+  const radiusRaw = params.get("radius");
+
   return {
     state: params.get("state") ?? "",
     district: params.get("district") ?? "",
@@ -82,6 +90,13 @@ export function filtersFromSearchParams(
     sort: (params.get("sort") as LibraryFilters["sort"]) || "relevance",
     view: params.get("view") === "list" ? "list" : "grid",
     page: Number(params.get("page") ?? 1),
+    ...(latRaw !== null && lngRaw !== null
+      ? {
+          lat: Number(latRaw),
+          lng: Number(lngRaw),
+          radius: radiusRaw !== null ? Number(radiusRaw) : 10,
+        }
+      : {}),
   };
 }
 
@@ -106,6 +121,13 @@ export function filtersToSearchParams(filters: LibraryFilters): URLSearchParams 
   if (filters.sort !== "relevance") params.set("sort", filters.sort);
   if (filters.view !== "grid") params.set("view", filters.view);
   if (filters.page > 1) params.set("page", String(filters.page));
+
+  // Geolocation params (Near Me — Req 1.11)
+  if (filters.lat !== undefined && filters.lng !== undefined) {
+    params.set("lat", String(filters.lat));
+    params.set("lng", String(filters.lng));
+    params.set("radius", String(filters.radius ?? 10));
+  }
 
   return params;
 }

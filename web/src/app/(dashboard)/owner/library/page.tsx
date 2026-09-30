@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { useDropzone } from "react-dropzone";
-import { Check, ImagePlus, Loader2, Star, Trash2, X } from "lucide-react";
+import { Check, ImagePlus, Loader2, Star, Trash2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
