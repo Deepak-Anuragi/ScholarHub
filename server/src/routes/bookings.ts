@@ -8,6 +8,7 @@ import DigitalIDModel from "../models/DigitalID";
 import PayoutLedgerModel from "../models/PayoutLedger";
 import SlotModel from "../models/Slot";
 import LibraryModel from "../models/Library";
+import UserModel from "../models/User";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -16,9 +17,10 @@ const router = Router();
 router.post("/create-order", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
-    const { libraryId, slotId, plan, startDate } = req.body as {
+    const { libraryId, slotId, plan, startDate, seatNumber } = req.body as {
       libraryId?: string; slotId?: string;
       plan?: "MONTHLY" | "QUARTERLY" | "ANNUAL"; startDate?: string;
+      seatNumber?: string;
     };
 
     if (!libraryId || !plan || !startDate) {
@@ -38,6 +40,22 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
       }
     }
 
+    // Task 8.4 — Seat conflict check (Req 5.4)
+    if (seatNumber) {
+      const seatQuery: Record<string, unknown> = {
+        libraryId,
+        seatNumber,
+        status: "ACTIVE",
+      };
+      if (slotId) seatQuery.slotId = slotId;
+
+      const seatConflict = await BookingModel.exists(seatQuery);
+      if (seatConflict) {
+        res.status(409).json({ error: "Seat already taken. Please choose another seat." });
+        return;
+      }
+    }
+
     const addMonths = (date: Date, months: number) => {
       const d = new Date(date); d.setMonth(d.getMonth() + months); return d;
     };
@@ -46,7 +64,29 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
 
     const planFee = plan === "QUARTERLY" ? (library.quarterlyFee ?? library.monthlyFee * 3)
       : plan === "ANNUAL" ? (library.annualFee ?? library.monthlyFee * 12) : library.monthlyFee;
-    const { libraryFee, platformFee, total } = priceBooking(planFee);
+    const { libraryFee, platformFee, total: baseTotal } = priceBooking(planFee);
+
+    // Task 16.4 — Apply referral discount (Req 11.4, 11.5)
+    let discountAmount = 0;
+    let creditsRemaining = 0;
+
+    const studentUser = await UserModel.findById(user.id).select("referralCredits");
+    if (studentUser && studentUser.referralCredits > 0) {
+      const potentialDiscount = Math.min(50, studentUser.referralCredits);
+      // Ensure amountPaid never drops below ₹1
+      if (baseTotal - potentialDiscount >= 1) {
+        discountAmount = potentialDiscount;
+      }
+      // Deduct credits atomically
+      if (discountAmount > 0) {
+        await UserModel.findByIdAndUpdate(user.id, { $inc: { referralCredits: -discountAmount } });
+        creditsRemaining = studentUser.referralCredits - discountAmount;
+      } else {
+        creditsRemaining = studentUser.referralCredits;
+      }
+    }
+
+    const total = baseTotal - discountAmount;
 
     let razorpayOrderId: string;
     let razorpayKeyId: string | undefined;
@@ -61,11 +101,13 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
       razorpayOrderId = `mock_order_${Date.now()}`;
     }
 
+    // Task 8.4 — Store seatNumber on Booking document (Req 5.3)
     const booking = await BookingModel.create({
       studentId: user.id, libraryId, slotId: slotId ?? undefined,
       startDate: start, endDate: end, plan,
       libraryFee, platformFee, amountPaid: total,
       paymentStatus: "PENDING", razorpayOrderId,
+      ...(seatNumber ? { seatNumber } : {}),
     });
 
     res.json({
@@ -73,6 +115,7 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
       razorpay_key_id: razorpayKeyId, amount: total, library_fee: libraryFee,
       platform_fee: platformFee, currency: "INR", library_name: library.name,
       plan, start_date: start.toISOString(), end_date: end.toISOString(),
+      discountAmount, creditsRemaining,
     });
   } catch (err) {
     console.error("[create-order]", err);
@@ -179,9 +222,12 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
       bookingId: String(booking._id), studentId: String(booking.studentId),
       libraryId: String(booking.libraryId), plan: booking.plan, validUntil: booking.endDate.toISOString(),
     });
+
+    // Task 8.5 — Include seatNumber in DigitalID if present (Req 5.5)
     await DigitalIDModel.create({
       bookingId: booking._id, studentId: booking.studentId,
       libraryId: booking.libraryId, qrData, issuedAt: new Date(), validUntil: booking.endDate,
+      ...(booking.seatNumber ? { seatNumber: booking.seatNumber } : {}),
     });
 
     // The owner is paid the library's fee in full; the platform keeps the fee
@@ -194,6 +240,23 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
         bookingId: booking._id, libraryId: booking.libraryId, ownerId: library.ownerId,
         ...split, payoutStatus: "PENDING",
       });
+    }
+
+    // Task 16.3 — Award ₹50 referral credits on first successful booking (Req 11.3)
+    const successfulBookingCount = await BookingModel.countDocuments({
+      studentId: user.id,
+      paymentStatus: "SUCCESS",
+    });
+
+    if (successfulBookingCount === 1) {
+      // This is the student's first successful booking — check for referrer
+      const studentDoc = await UserModel.findById(user.id).select("referredBy");
+      if (studentDoc?.referredBy) {
+        // Award ₹50 to the referred student
+        await UserModel.findByIdAndUpdate(user.id, { $inc: { referralCredits: 50 } });
+        // Award ₹50 to the referring student
+        await UserModel.findByIdAndUpdate(studentDoc.referredBy, { $inc: { referralCredits: 50 } });
+      }
     }
 
     res.json({ success: true, bookingId: String(booking._id) });

@@ -9,6 +9,9 @@ export interface IReview extends Document {
   isVerified: boolean;
   ownerReply?: string;
   ownerRepliedAt?: Date;
+  photos: string[];
+  helpfulCount: number;
+  helpfulVoters: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +26,9 @@ const ReviewSchema = new Schema<IReview>(
     isVerified:     { type: Boolean, default: true },
     ownerReply:     { type: String },
     ownerRepliedAt: { type: Date },
+    photos:         { type: [String], default: [] },
+    helpfulCount:   { type: Number, default: 0 },
+    helpfulVoters:  { type: [Schema.Types.ObjectId], ref: "User", default: [] },
   },
   { timestamps: true }
 );
@@ -30,6 +36,7 @@ const ReviewSchema = new Schema<IReview>(
 ReviewSchema.index({ libraryId: 1, createdAt: -1 });
 ReviewSchema.index({ studentId: 1 });
 ReviewSchema.index({ bookingId: 1 }, { unique: true });
+ReviewSchema.index({ libraryId: 1, helpfulCount: -1 });
 
 export default mongoose.models.Review ||
   mongoose.model<IReview>("Review", ReviewSchema);

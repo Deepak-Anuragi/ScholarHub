@@ -6,6 +6,8 @@ import { isDatabaseUnavailable } from "../lib/db-errors";
 import LibraryModel from "../models/Library";
 import ReviewModel from "../models/Review";
 import SlotModel from "../models/Slot";
+import BookingModel from "../models/Booking";
+import { buildSeatMap } from "../lib/seat-map";
 
 const router = Router();
 
@@ -192,6 +194,47 @@ router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> =>
     }
     console.error("[reviews GET]", err);
     res.status(500).json({ error: "Failed to fetch reviews." });
+  }
+});
+
+// ── GET /api/libraries/:id/seat-map ──────────────────────────────────────
+router.get("/:id/seat-map", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+
+    const library = await LibraryModel.findById(req.params.id).lean();
+    if (!library) {
+      res.status(404).json({ error: "Library not found." });
+      return;
+    }
+
+    const totalSeats: number = (library as Record<string, unknown>).totalSeats as number ?? 0;
+
+    const bookingFilter: Record<string, unknown> = {
+      libraryId: req.params.id,
+      status: "ACTIVE",
+    };
+    const slotId = req.query.slot as string | undefined;
+    if (slotId && mongoose.Types.ObjectId.isValid(slotId)) {
+      bookingFilter.slotId = new mongoose.Types.ObjectId(slotId);
+    }
+
+    const activeBookings = await BookingModel.find(bookingFilter, "seatNumber").lean();
+    const occupiedSeatNumbers = activeBookings
+      .map((b) => (b as Record<string, unknown>).seatNumber as string | undefined)
+      .filter((s): s is string => typeof s === "string" && s.length > 0);
+
+    const seats = buildSeatMap(totalSeats, occupiedSeatNumbers);
+
+    res.json({ seats, totalSeats, occupiedCount: occupiedSeatNumbers.length });
+  } catch (err) {
+    if (isDatabaseUnavailable(err)) {
+      console.error("[seat-map GET] database unavailable", err);
+      res.status(503).json({ error: "Service temporarily unavailable." });
+      return;
+    }
+    console.error("[seat-map GET]", err);
+    res.status(500).json({ error: "Failed to fetch seat map." });
   }
 });
 

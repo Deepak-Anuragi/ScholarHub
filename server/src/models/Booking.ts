@@ -20,6 +20,7 @@ export interface IBooking extends Document {
   paymentStatus: PaymentStatus;
   paymentId?: string;
   razorpayOrderId?: string;
+  seatNumber?: string;
   status: BookingStatus;
   createdAt: Date;
   updatedAt: Date;
@@ -39,6 +40,7 @@ const BookingSchema = new Schema<IBooking>(
     paymentStatus:   { type: String, enum: ["PENDING", "SUCCESS", "FAILED", "REFUNDED"], default: "PENDING" },
     paymentId:       { type: String },
     razorpayOrderId: { type: String },
+    seatNumber:      { type: String },
     status:          { type: String, enum: ["ACTIVE", "EXPIRED", "CANCELLED"], default: "ACTIVE" },
   },
   { timestamps: true }

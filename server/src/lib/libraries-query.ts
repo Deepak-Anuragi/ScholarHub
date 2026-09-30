@@ -1,4 +1,4 @@
-import { libraries, LibrarySummary } from "./mock-data";
+import type { LibraryFilters } from "./libraries-filters";
 
 export const EXAM_TYPE_MAP: Record<string, string> = {
   "govt-exam": "Govt Exam",
@@ -15,6 +15,45 @@ export type LibrarySort =
   | "newest"
   | "seats";
 
+export type CoverTone = "sage" | "forest" | "sand";
+
+export type LibraryPhoto = {
+  url: string;
+  isCover: boolean;
+  order?: number;
+};
+
+export type LibraryItem = {
+  _id: string;
+  id?: string;
+  name: string;
+  description?: string;
+  address?: string;
+  city: string;
+  district: string;
+  state: string;
+  pincode?: string;
+  totalSeats?: number;
+  availableSeats: number;
+  monthlyFee: number;
+  quarterlyFee?: number | null;
+  annualFee?: number | null;
+  facilities: string[];
+  studentTypes?: string[];
+  photos?: LibraryPhoto[];
+  coverTone?: CoverTone;
+  ratingAvg?: number;
+  rating?: number;
+  reviewCount?: number;
+  isVerified?: boolean;
+  isActive?: boolean;
+  whatsapp?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export type LibraryQueryParams = {
   city?: string;
   state?: string;
@@ -22,108 +61,91 @@ export type LibraryQueryParams = {
   fee_min?: number;
   fee_max?: number;
   exam_type?: string;
-  facilities?: string[];
-  min_rating?: number;
-  available_only?: boolean;
+  facilities?: string[] | string;
+  min_rating?: number | string;
+  available_only?: boolean | string;
   sort?: LibrarySort;
   page?: number;
   limit?: number;
 };
 
 export type LibrariesResult = {
-  libraries: LibrarySummary[];
+  libraries: LibraryItem[];
   total: number;
   page: number;
   totalPages: number;
 };
 
-function parseExamType(value?: string): string | undefined {
-  if (!value) return undefined;
-  return EXAM_TYPE_MAP[value] ?? value;
-}
+export function buildLibraryQuery(
+  filters: Partial<LibraryFilters> | LibraryQueryParams
+): string {
+  const query = new URLSearchParams();
+  const f = filters as Record<string, unknown>;
 
-export function queryLibraries(params: LibraryQueryParams): LibrariesResult {
-  const {
-    city,
-    state,
-    district,
-    fee_min = 500,
-    fee_max = 5000,
-    exam_type,
-    facilities = [],
-    min_rating = 0,
-    available_only = false,
-    sort = "relevance",
-    page = 1,
-    limit = 12,
-  } = params;
+  if (typeof f.state === "string" && f.state) query.set("state", f.state);
+  if (typeof f.district === "string" && f.district)
+    query.set("district", f.district);
+  if (typeof f.city === "string" && f.city) query.set("city", f.city);
 
-  const examLabel = parseExamType(exam_type);
+  const feeMin = (f.feeMin ?? f.fee_min) as number | undefined;
+  const feeMax = (f.feeMax ?? f.fee_max) as number | undefined;
+  if (feeMin !== undefined && feeMin !== null && feeMin !== 500) {
+    query.set("fee_min", String(feeMin));
+  }
+  if (feeMax !== undefined && feeMax !== null && feeMax !== 5000) {
+    query.set("fee_max", String(feeMax));
+  }
 
-  let results = libraries.filter((library) => {
-    if (state && library.state.toLowerCase() !== state.toLowerCase()) {
-      return false;
-    }
-    if (district && library.district.toLowerCase() !== district.toLowerCase()) {
-      return false;
-    }
-    if (city && library.city.toLowerCase() !== city.toLowerCase()) {
-      return false;
-    }
-    const minFee = Math.min(fee_min, fee_max);
-    const maxFee = Math.max(fee_min, fee_max);
-    if (library.monthlyFee < minFee || library.monthlyFee > maxFee) {
-      return false;
-    }
-    if (examLabel && !library.studentTypes.includes(examLabel)) {
-      return false;
-    }
-    if (facilities.length > 0) {
-      const hasAll = facilities.every((facility) =>
-        library.facilities.some(
-          (item) => item.toLowerCase() === facility.toLowerCase()
-        )
-      );
-      if (!hasAll) return false;
-    }
-    if (min_rating > 0 && library.rating < min_rating) {
-      return false;
-    }
-    if (available_only && library.availableSeats <= 0) {
-      return false;
-    }
-    return true;
-  });
+  const facilities = (f.facilities ?? f.facilities) as
+    | string[]
+    | string
+    | undefined;
+  if (Array.isArray(facilities) && facilities.length > 0) {
+    query.set("facilities", facilities.join(","));
+  } else if (typeof facilities === "string" && facilities) {
+    query.set("facilities", facilities);
+  }
 
-  results = [...results].sort((a, b) => {
-    switch (sort) {
-      case "rating":
-        return b.rating - a.rating;
-      case "fee-asc":
-        return a.monthlyFee - b.monthlyFee;
-      case "fee-desc":
-        return b.monthlyFee - a.monthlyFee;
-      case "newest":
-        return (
-          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-        );
-      case "seats":
-        return b.availableSeats - a.availableSeats;
-      case "relevance":
-      default:
-        return b.rating - a.rating || b.reviewCount - a.reviewCount;
-    }
-  });
+  const examType = (f.examType ?? f.exam_type) as string | undefined;
+  if (examType) {
+    query.set("exam_type", examType);
+  }
 
-  const total = results.length;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const safePage = Math.min(Math.max(page, 1), totalPages);
-  const start = (safePage - 1) * limit;
+  const availableOnly = (f.availableOnly ?? f.available_only) as
+    | boolean
+    | string
+    | undefined;
+  if (availableOnly === true || availableOnly === "true") {
+    query.set("available_only", "true");
+  }
 
-  return {
-    libraries: results.slice(start, start + limit),
-    total,
-    page: safePage,
-    totalPages,
-  };
+  const minRating = (f.minRating ?? f.min_rating) as
+    | string
+    | number
+    | undefined;
+  if (
+    minRating !== undefined &&
+    minRating !== null &&
+    String(minRating) !== "" &&
+    String(minRating) !== "0"
+  ) {
+    query.set("min_rating", String(minRating));
+  }
+
+  const sort = f.sort as LibrarySort | undefined;
+  if (sort && sort !== "relevance") {
+    query.set("sort", sort);
+  }
+
+  const page = f.page as number | undefined;
+  if (page && Number(page) > 1) {
+    query.set("page", String(page));
+  }
+
+  const limit = f.limit as number | undefined;
+  if (limit) {
+    query.set("limit", String(limit));
+  }
+
+  return query.toString();
 }

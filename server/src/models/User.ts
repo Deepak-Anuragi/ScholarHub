@@ -1,4 +1,4 @@
-import mongoose, { Schema, Document } from "mongoose";
+import mongoose, { Schema, Document, Types } from "mongoose";
 
 export interface IUser extends Document {
   name: string;
@@ -14,6 +14,11 @@ export interface IUser extends Document {
   fcmToken?: string;
   resetPasswordToken?: string;
   resetPasswordExpires?: Date;
+  // Wishlist (Req 9)
+  wishlist: Types.ObjectId[];
+  // Referral (Req 11)
+  referredBy?: Types.ObjectId;
+  referralCredits: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -33,6 +38,11 @@ const UserSchema = new Schema<IUser>(
     fcmToken:             { type: String },
     resetPasswordToken:   { type: String },
     resetPasswordExpires: { type: Date },
+    // Wishlist (Req 9)
+    wishlist:             { type: [{ type: Schema.Types.ObjectId, ref: "Library" }], default: [] },
+    // Referral (Req 11)
+    referredBy:           { type: Schema.Types.ObjectId, ref: "User" },
+    referralCredits:      { type: Number, default: 0 },
   },
   { timestamps: true }
 );
@@ -40,5 +50,6 @@ const UserSchema = new Schema<IUser>(
 UserSchema.index({ email: 1 }, { unique: true });
 UserSchema.index({ role: 1, city: 1 });
 UserSchema.index({ resetPasswordToken: 1 });
+UserSchema.index({ wishlist: 1 }, { sparse: true });
 
 export default mongoose.models.User || mongoose.model<IUser>("User", UserSchema);

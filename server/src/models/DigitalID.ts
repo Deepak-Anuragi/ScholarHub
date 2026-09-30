@@ -8,6 +8,7 @@ export interface IDigitalID extends Document {
   qrData: string;
   issuedAt: Date;
   validUntil: Date;
+  seatNumber?: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +22,7 @@ const DigitalIDSchema = new Schema<IDigitalID>(
     qrData:     { type: String, required: true },
     issuedAt:   { type: Date, default: Date.now },
     validUntil: { type: Date, required: true },
+    seatNumber: { type: String },
   },
   { timestamps: true }
 );

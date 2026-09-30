@@ -2,8 +2,11 @@ import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
+import { computeRefund } from "../lib/refund";
 import BookingModel from "../models/Booking";
+import LibraryModel from "../models/Library";
 import ReviewModel from "../models/Review";
+import SlotModel from "../models/Slot";
 import StudentCourseModel from "../models/StudentCourse";
 import NotificationModel from "../models/Notification";
 import WaitlistModel from "../models/Waitlist";
@@ -72,6 +75,8 @@ router.get("/bookings/active", async (req: Request, res: Response): Promise<void
   }
 });
 
+// Task 6.1 — GET /api/student/bookings (Req 3.1)
+// Returns active and past bookings with all fee fields and library address.
 router.get("/bookings", async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
@@ -81,15 +86,302 @@ router.get("/bookings", async (req: Request, res: Response): Promise<void> => {
     const [active, past] = await Promise.all([
       BookingModel.find({ studentId: id, status: "ACTIVE" })
         .populate("libraryId", "name address city photos contactPhone")
-        .populate("slotId", "name startTime endTime").sort({ createdAt: -1 }).lean(),
+        .populate("slotId", "name startTime endTime")
+        .select("libraryId slotId plan startDate endDate libraryFee platformFee amountPaid paymentId razorpayOrderId status createdAt")
+        .sort({ createdAt: -1 })
+        .lean(),
       BookingModel.find({ studentId: id, status: { $in: ["EXPIRED", "CANCELLED"] } })
-        .populate("libraryId", "name address city").sort({ createdAt: -1 }).limit(20).lean(),
+        .populate("libraryId", "name address city")
+        .populate("slotId", "name startTime endTime")
+        .select("libraryId slotId plan startDate endDate libraryFee platformFee amountPaid paymentId razorpayOrderId status createdAt")
+        .sort({ createdAt: -1 })
+        .limit(50)
+        .lean(),
     ]);
 
     res.json({ active, past });
   } catch (err) {
     console.error("[student/bookings]", err);
     res.status(500).json({ error: "Failed to fetch bookings." });
+  }
+});
+
+// Task 5.1 — GET /api/student/bookings/:id/cancellation-preview (Req 2.6, 2.8)
+// Read-only — computes the refund preview without modifying any data.
+router.get("/bookings/:id/cancellation-preview", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+
+    const booking = await BookingModel.findById(req.params.id).lean();
+    if (!booking) {
+      res.status(404).json({ error: "Booking not found." });
+      return;
+    }
+    if (booking.studentId.toString() !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const { refundAmount, refundTier, refundPolicy } = computeRefund(
+      booking.amountPaid,
+      booking.startDate
+    );
+
+    res.json({ refundAmount, refundTier, refundPolicy });
+  } catch (err) {
+    console.error("[student/bookings/cancellation-preview]", err);
+    res.status(500).json({ error: "Failed to compute cancellation preview." });
+  }
+});
+
+// Task 5.2 — DELETE /api/student/bookings/:id (Req 2.3, 2.4, 2.5, 2.7, 2.8)
+// Cancels an ACTIVE booking, computes refund, restores seats, and notifies waitlist.
+router.delete("/bookings/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const booking = await BookingModel.findById(req.params.id);
+    if (!booking) {
+      res.status(404).json({ error: "Booking not found." });
+      return;
+    }
+    if (booking.studentId.toString() !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    if (booking.status !== "ACTIVE") {
+      res.status(409).json({ error: "Only active bookings can be cancelled." });
+      return;
+    }
+
+    const { refundAmount, refundTier, refundPolicy } = computeRefund(
+      booking.amountPaid,
+      booking.startDate
+    );
+
+    booking.status = "CANCELLED";
+    booking.paymentStatus = refundAmount > 0 ? "REFUNDED" : booking.paymentStatus;
+    await booking.save();
+
+    if (booking.slotId) {
+      await SlotModel.findOneAndUpdate(
+        { _id: booking.slotId },
+        { $inc: { availableSeats: 1 } }
+      );
+    }
+    await LibraryModel.findOneAndUpdate(
+      { _id: booking.libraryId },
+      { $inc: { availableSeats: 1 } }
+    );
+
+    if (booking.slotId) {
+      const WaitlistModelDyn = (await import("../models/Waitlist")).default;
+      const nextEntry = await WaitlistModelDyn.findOne({
+        libraryId: booking.libraryId,
+        slotId: booking.slotId,
+      })
+        .sort({ position: 1 })
+        .populate("studentId", "email name")
+        .lean();
+
+      if (nextEntry && nextEntry.studentId) {
+        const NotifModelDyn = (await import("../models/Notification")).default;
+        const student = nextEntry.studentId as { _id: mongoose.Types.ObjectId; email: string; name: string };
+        await NotifModelDyn.create({
+          userId: student._id,
+          title: "Seat Available!",
+          message: `A seat has opened up for your waitlisted slot. Book now before it's taken!`,
+          type: "WAITLIST",
+          read: false,
+        });
+      }
+    }
+
+    res.json({
+      success: true,
+      refundAmount,
+      refundTier,
+      refundPolicy,
+    });
+  } catch (err) {
+    console.error("[student/bookings DELETE]", err);
+    res.status(500).json({ error: "Failed to cancel booking." });
+  }
+});
+
+// Task 6.2 — GET /api/student/bookings/:id/receipt (Req 3.2, 3.5)
+router.get("/bookings/:id/receipt", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+
+    const rawBooking = await BookingModel.findById(req.params.id)
+      .populate("libraryId", "name address city")
+      .populate("studentId", "name email")
+      .lean() as unknown as (Record<string, unknown> & {
+        studentId: { _id: mongoose.Types.ObjectId; name: string; email: string };
+        libraryId: { name: string; address?: string; city: string };
+        plan: string; startDate: Date; endDate: Date;
+        libraryFee?: number; platformFee?: number; amountPaid: number; paymentId?: string;
+      }) | null;
+
+    const booking = rawBooking;
+
+    if (!booking) {
+      res.status(404).json({ error: "Booking not found." });
+      return;
+    }
+
+    const populatedStudent = booking.studentId;
+    if (populatedStudent._id.toString() !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    const lib = booking.libraryId;
+    const addressParts = [lib.address, lib.city].filter(Boolean);
+    const receiptNumber = "SH-" + req.params.id.toString().slice(-8).toUpperCase();
+
+    res.json({
+      receiptNumber,
+      studentName:    populatedStudent.name,
+      studentEmail:   populatedStudent.email,
+      libraryName:    lib.name,
+      libraryAddress: addressParts.join(", "),
+      plan:           booking.plan,
+      startDate:      booking.startDate,
+      endDate:        booking.endDate,
+      libraryFee:     booking.libraryFee ?? 0,
+      platformFee:    booking.platformFee ?? 0,
+      amountPaid:     booking.amountPaid,
+      paymentId:      booking.paymentId ?? null,
+    });
+  } catch (err) {
+    console.error("[student/bookings/receipt]", err);
+    res.status(500).json({ error: "Failed to fetch receipt." });
+  }
+});
+
+// Task 7.1 — POST /api/student/bookings/:id/renew (Req 4.1, 4.2, 4.3, 4.4)
+router.post("/bookings/:id/renew", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+
+    const original = await BookingModel.findById(req.params.id).lean();
+    if (!original) {
+      res.status(404).json({ error: "Booking not found." });
+      return;
+    }
+    if (original.studentId.toString() !== user.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
+    // Req 4.3 — only ACTIVE or EXPIRED bookings can be renewed
+    if (original.status !== "ACTIVE" && original.status !== "EXPIRED") {
+      res.status(409).json({ error: "Only active or recently expired bookings can be renewed." });
+      return;
+    }
+
+    const { plan } = req.body as { plan?: "MONTHLY" | "QUARTERLY" | "ANNUAL" };
+    if (!plan || !["MONTHLY", "QUARTERLY", "ANNUAL"].includes(plan)) {
+      res.status(400).json({ error: "A valid plan (MONTHLY, QUARTERLY, ANNUAL) is required." });
+      return;
+    }
+
+    // Req 4.4 — check slot availability if applicable
+    if (original.slotId) {
+      const slot = await SlotModel.findById(original.slotId).lean();
+      if (!slot || slot.availableSeats <= 0) {
+        res.status(409).json({ error: "Seat no longer available. Please book a new slot." });
+        return;
+      }
+    }
+
+    const library = await LibraryModel.findById(original.libraryId).lean();
+    if (!library) {
+      res.status(404).json({ error: "Library not found." });
+      return;
+    }
+
+    // Req 4.1 — new startDate = oldBooking.endDate + 1 day
+    const addMonths = (date: Date, months: number): Date => {
+      const d = new Date(date);
+      d.setMonth(d.getMonth() + months);
+      return d;
+    };
+
+    const startDate = new Date(original.endDate);
+    startDate.setDate(startDate.getDate() + 1);
+
+    const endDate =
+      plan === "QUARTERLY" ? addMonths(startDate, 3)
+      : plan === "ANNUAL"  ? addMonths(startDate, 12)
+      :                       addMonths(startDate, 1);
+
+    // Compute fees using the same logic as create-order
+    const { priceBooking } = await import("../lib/pricing");
+    const planFee =
+      plan === "QUARTERLY" ? (library.quarterlyFee ?? library.monthlyFee * 3)
+      : plan === "ANNUAL"  ? (library.annualFee   ?? library.monthlyFee * 12)
+      :                       library.monthlyFee;
+    const { libraryFee, platformFee, total } = priceBooking(planFee);
+
+    // Create Razorpay order (same pattern as POST /api/bookings/create-order)
+    let razorpayOrderId: string;
+    let razorpayKeyId: string | undefined;
+
+    if (process.env.RAZORPAY_KEY_ID && process.env.RAZORPAY_KEY_SECRET) {
+      const Razorpay = (await import("razorpay")).default;
+      const rzp = new Razorpay({
+        key_id:     process.env.RAZORPAY_KEY_ID,
+        key_secret: process.env.RAZORPAY_KEY_SECRET,
+      });
+      const order = await rzp.orders.create({
+        amount:   total * 100,
+        currency: "INR",
+        receipt:  `renew_${Date.now()}`,
+      });
+      razorpayOrderId = order.id;
+      razorpayKeyId   = process.env.RAZORPAY_KEY_ID;
+    } else {
+      razorpayOrderId = `mock_order_${Date.now()}`;
+    }
+
+    // Create the new (PENDING) booking — confirmed via existing /api/bookings/confirm
+    const newBooking = await BookingModel.create({
+      studentId:       user.id,
+      libraryId:       original.libraryId,
+      slotId:          original.slotId ?? undefined,
+      startDate,
+      endDate,
+      plan,
+      libraryFee,
+      platformFee,
+      amountPaid:      total,
+      paymentStatus:   "PENDING",
+      razorpayOrderId,
+      seatNumber:      original.seatNumber,
+    });
+
+    res.json({
+      bookingId:         String(newBooking._id),
+      razorpay_order_id: razorpayOrderId,
+      razorpay_key_id:   razorpayKeyId,
+      amount:            total,
+      library_fee:       libraryFee,
+      platform_fee:      platformFee,
+      currency:          "INR",
+      library_name:      library.name,
+      plan,
+      start_date:        startDate.toISOString(),
+      end_date:          endDate.toISOString(),
+    });
+  } catch (err) {
+    console.error("[student/bookings/renew]", err);
+    res.status(500).json({ error: "Failed to create renewal order." });
   }
 });
 
@@ -220,6 +512,80 @@ router.delete("/waitlist/:id", async (req: Request, res: Response): Promise<void
   }
 });
 
+// ─── WISHLIST (Task 14.1 — Req 9.1, 9.2, 9.3, 9.4, 9.6) ──────────────────
+// Auth is already enforced by router.use(requireAuth) above (satisfies Req 9.6).
+
+// POST /api/student/wishlist — add a library to the wishlist
+router.post("/wishlist", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const studentId = new mongoose.Types.ObjectId(user.id);
+    const { libraryId } = req.body as { libraryId?: string };
+
+    if (!libraryId) {
+      res.status(400).json({ error: "libraryId is required." });
+      return;
+    }
+
+    const libOid = new mongoose.Types.ObjectId(libraryId);
+
+    // Req 9.2 — prevent duplicates
+    const student = await UserModel.findOne({ _id: studentId, wishlist: libOid }).lean();
+    if (student) {
+      res.status(409).json({ error: "Library already in wishlist." });
+      return;
+    }
+
+    await UserModel.findByIdAndUpdate(studentId, { $push: { wishlist: libOid } });
+
+    res.status(201).json({ success: true, libraryId });
+  } catch (err) {
+    console.error("[student/wishlist POST]", err);
+    res.status(500).json({ error: "Failed to add to wishlist." });
+  }
+});
+
+// DELETE /api/student/wishlist/:libraryId — remove a library from the wishlist
+router.delete("/wishlist/:libraryId", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const studentId = new mongoose.Types.ObjectId(user.id);
+    const libOid = new mongoose.Types.ObjectId(req.params.libraryId);
+
+    await UserModel.findByIdAndUpdate(studentId, { $pull: { wishlist: libOid } });
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[student/wishlist DELETE]", err);
+    res.status(500).json({ error: "Failed to remove from wishlist." });
+  }
+});
+
+// GET /api/student/wishlist — list saved libraries with full card fields
+router.get("/wishlist", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const studentId = new mongoose.Types.ObjectId(user.id);
+
+    const student = await UserModel.findById(studentId)
+      .populate("wishlist", "name city monthlyFee ratingAvg availableSeats facilities photos")
+      .lean();
+
+    if (!student) {
+      res.status(404).json({ error: "User not found." });
+      return;
+    }
+
+    res.json({ wishlist: student.wishlist ?? [] });
+  } catch (err) {
+    console.error("[student/wishlist GET]", err);
+    res.status(500).json({ error: "Failed to fetch wishlist." });
+  }
+});
+
 // ─── REVIEWS ──────────────────────────────────────────────────────────────
 router.get("/reviews", async (req: Request, res: Response): Promise<void> => {
   try {
@@ -301,13 +667,13 @@ router.post("/reviews", async (req: Request, res: Response): Promise<void> => {
     });
 
     // Update library ratingAvg + reviewCount
-    const LibraryModel = (await import("../models/Library")).default;
+    const LibraryModelDyn = (await import("../models/Library")).default;
     const [agg] = await ReviewModel.aggregate([
       { $match: { libraryId: booking.libraryId } },
       { $group: { _id: null, avg: { $avg: "$rating" }, count: { $sum: 1 } } },
     ]);
     if (agg) {
-      await LibraryModel.findByIdAndUpdate(booking.libraryId, {
+      await LibraryModelDyn.findByIdAndUpdate(booking.libraryId, {
         ratingAvg:   Math.round(agg.avg * 10) / 10,
         reviewCount: agg.count,
       });
