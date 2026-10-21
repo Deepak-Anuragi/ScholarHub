@@ -3,6 +3,7 @@ import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
 import { isDatabaseUnavailable } from "../lib/db-errors";
+import { cacheQuery, invalidatePattern, invalidateKey } from "../lib/redis";
 import LibraryModel from "../models/Library";
 import ReviewModel from "../models/Review";
 import SlotModel from "../models/Slot";
@@ -69,12 +70,21 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
     const limitNum = Number(limit);
     const skip = (pageNum - 1) * limitNum;
 
-    const [docs, total] = await Promise.all([
-      LibraryModel.find(filter).populate("ownerId", "name phone email").sort(sortObj).skip(skip).limit(limitNum).lean(),
-      LibraryModel.countDocuments(filter),
-    ]);
+    // Redis cache key based on the full query string (60s TTL)
+    const cacheKey = `libraries:list:${JSON.stringify(req.query)}`;
+    const result = await cacheQuery(
+      cacheKey,
+      async () => {
+        const [docs, total] = await Promise.all([
+          LibraryModel.find(filter).populate("ownerId", "name phone email").sort(sortObj).skip(skip).limit(limitNum).lean(),
+          LibraryModel.countDocuments(filter),
+        ]);
+        return { libraries: docs, total, page: pageNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) };
+      },
+      60,
+    );
 
-    res.json({ libraries: docs, total, page: pageNum, totalPages: Math.max(1, Math.ceil(total / limitNum)) });
+    res.json(result);
   } catch (err) {
     if (isDatabaseUnavailable(err)) {
       console.error("[libraries GET] database unavailable", err);
@@ -147,9 +157,20 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
 router.get("/:id", async (req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
-    const library = await LibraryModel.findById(req.params.id).populate("ownerId", "name phone email").lean();
-    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
-    res.json({ library });
+
+    // Redis cache per library ID (120s TTL)
+    const cacheKey = `libraries:detail:${req.params.id}`;
+    const result = await cacheQuery(
+      cacheKey,
+      async () => {
+        const library = await LibraryModel.findById(req.params.id).populate("ownerId", "name phone email").lean();
+        return library;
+      },
+      120,
+    );
+
+    if (!result) { res.status(404).json({ error: "Library not found." }); return; }
+    res.json({ library: result });
   } catch (err) {
     if (isDatabaseUnavailable(err)) {
       console.error("[library GET] database unavailable", err);
@@ -167,6 +188,13 @@ router.put("/:id", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const library = await LibraryModel.findByIdAndUpdate(req.params.id, withLocation(req.body), { new: true, runValidators: true });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+
+    // Invalidate cached data for this library and all listing pages
+    await Promise.all([
+      invalidateKey(`libraries:detail:${req.params.id}`),
+      invalidatePattern("libraries:list:*"),
+    ]);
+
     res.json({ library });
   } catch (err) {
     console.error("[library PUT]", err);

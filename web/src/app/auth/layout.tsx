@@ -10,6 +10,13 @@ const highlights = [
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen bg-sand-100 dark:bg-[#09090b]">
+      {/* Slim top bar with logo for when the green panel is not visible */}
+      <div className="flex items-center gap-2.5 border-b border-line dark:border-[#27272a] px-4 py-3 lg:hidden">
+        <div className="flex size-8 items-center justify-center rounded-xl bg-[#16a34a] text-white">
+          <BookOpen className="size-4" aria-hidden />
+        </div>
+        <span className="font-display text-base font-semibold text-forest-900 dark:text-white">Scholar's Hub</span>
+      </div>
       <main className="mx-auto w-full max-w-5xl px-4 pb-16 pt-10 sm:px-6">
         <div className="grid gap-6 lg:grid-cols-[1fr_1fr]">
 
