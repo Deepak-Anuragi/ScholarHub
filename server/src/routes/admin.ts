@@ -408,4 +408,188 @@ router.post("/notifications", async (req: Request, res: Response): Promise<void>
   }
 });
 
+
+// -- DISPUTES ---------------------------------------------------------------
+router.get("/disputes", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const status = req.query.status as string | undefined;
+    const page = Number(req.query.page ?? 1);
+    const limit = Number(req.query.limit ?? 20);
+    const filter: Record<string, unknown> = {};
+    if (status) filter.status = status;
+    const DisputeModel = (await import("../models/Dispute")).default;
+    const [disputes, total] = await Promise.all([
+      DisputeModel.find(filter)
+        .populate("studentId", "name email")
+        .populate("libraryId", "name city")
+        .populate("bookingId", "plan startDate endDate amountPaid")
+        .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      DisputeModel.countDocuments(filter),
+    ]);
+    res.json({ disputes, total, page, totalPages: Math.ceil(total / limit) });
+  } catch (err) {
+    console.error("[admin/disputes GET]", err);
+    res.status(500).json({ error: "Failed to fetch disputes." });
+  }
+});
+
+router.patch("/disputes/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const admin = req.sessionUser!;
+    await connectDB();
+    const DisputeModel = (await import("../models/Dispute")).default;
+    const { status, resolution, refundAmount } = req.body as {
+      status?: string; resolution?: string; refundAmount?: number;
+    };
+    const dispute = await DisputeModel.findById(req.params.id);
+    if (!dispute) { res.status(404).json({ error: "Dispute not found." }); return; }
+    if (status) dispute.status = status as import("../models/Dispute").DisputeStatus;
+    if (resolution) dispute.resolution = resolution;
+    if (status === "resolved" || status === "rejected") {
+      dispute.resolvedBy = new (await import("mongoose")).default.Types.ObjectId(admin.id);
+      dispute.resolvedAt = new Date();
+    }
+    if (refundAmount && refundAmount > 0 && dispute.bookingId) {
+      dispute.refundAmount = refundAmount;
+      const BookingModel = (await import("../models/Booking")).default;
+      await BookingModel.findByIdAndUpdate(dispute.bookingId, { paymentStatus: "REFUNDED" });
+    }
+    await dispute.save();
+    res.json({ dispute });
+  } catch (err) {
+    console.error("[admin/disputes PATCH]", err);
+    res.status(500).json({ error: "Failed to update dispute." });
+  }
+});
+
+// -- COUPONS ----------------------------------------------------------------
+router.get("/coupons", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const CouponModel = (await import("../models/Coupon")).default;
+    const coupons = await CouponModel.find().sort({ createdAt: -1 }).lean();
+    res.json({ coupons });
+  } catch (err) {
+    console.error("[admin/coupons GET]", err);
+    res.status(500).json({ error: "Failed to fetch coupons." });
+  }
+});
+
+router.post("/coupons", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const admin = req.sessionUser!;
+    await connectDB();
+    const CouponModel = (await import("../models/Coupon")).default;
+    const { code, discountType, discountValue, maxUses, expiresAt } = req.body as {
+      code?: string; discountType?: string; discountValue?: number; maxUses?: number; expiresAt?: string;
+    };
+    if (!code || !discountType || discountValue == null || !maxUses || !expiresAt) {
+      res.status(400).json({ error: "code, discountType, discountValue, maxUses and expiresAt are required." });
+      return;
+    }
+    const coupon = await CouponModel.create({
+      code: code.toUpperCase().trim(),
+      discountType,
+      discountValue,
+      maxUses,
+      expiresAt: new Date(expiresAt),
+      createdBy: admin.id,
+    });
+    res.status(201).json({ coupon });
+  } catch (err: unknown) {
+    const e = err as { code?: number };
+    if (e.code === 11000) { res.status(409).json({ error: "Coupon code already exists." }); return; }
+    console.error("[admin/coupons POST]", err);
+    res.status(500).json({ error: "Failed to create coupon." });
+  }
+});
+
+router.patch("/coupons/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const CouponModel = (await import("../models/Coupon")).default;
+    const coupon = await CouponModel.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!coupon) { res.status(404).json({ error: "Coupon not found." }); return; }
+    res.json({ coupon });
+  } catch (err) {
+    console.error("[admin/coupons PATCH]", err);
+    res.status(500).json({ error: "Failed to update coupon." });
+  }
+});
+
+router.delete("/coupons/:id", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const CouponModel = (await import("../models/Coupon")).default;
+    await CouponModel.findByIdAndDelete(req.params.id);
+    res.json({ success: true });
+  } catch (err) {
+    console.error("[admin/coupons DELETE]", err);
+    res.status(500).json({ error: "Failed to delete coupon." });
+  }
+});
+
+
+// -- PLATFORM ANALYTICS -------------------------------------------------------
+router.get("/analytics", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const BookingModel = (await import("../models/Booking")).default;
+    const UserModel = (await import("../models/User")).default;
+    
+    const now = new Date();
+    const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    
+    const [totalRevenue, newWeek, newMonth, cityStats, topLibs] = await Promise.all([
+      BookingModel.aggregate([
+        { $match: { paymentStatus: "SUCCESS" } },
+        { $group: { _id: null, total: { $sum: "$amountPaid" } } },
+      ]),
+      UserModel.countDocuments({ createdAt: { $gte: weekAgo } }),
+      UserModel.countDocuments({ createdAt: { $gte: monthAgo } }),
+      LibraryModel.aggregate([
+        { $group: { _id: "$city", count: { $sum: 1 } } },
+        { $project: { city: "$_id", count: 1, _id: 0 } },
+        { $sort: { count: -1 } },
+      ]),
+      BookingModel.aggregate([
+        { $match: { paymentStatus: "SUCCESS" } },
+        { $group: { _id: "$libraryId", revenue: { $sum: "$amountPaid" }, bookings: { $sum: 1 } } },
+        { $sort: { revenue: -1 } },
+        { $limit: 10 },
+        {
+          $lookup: {
+            from: "libraries",
+            localField: "_id",
+            foreignField: "_id",
+            as: "lib",
+          },
+        },
+        { $unwind: "$lib" },
+        {
+          $project: {
+            _id: 1,
+            name: "$lib.name",
+            city: "$lib.city",
+            revenue: 1,
+            bookings: 1,
+          },
+        },
+      ]),
+    ]);
+    
+    res.json({
+      totalRevenue: totalRevenue[0]?.total ?? 0,
+      newRegistrations: { week: newWeek, month: newMonth },
+      cityStats,
+      topLibraries: topLibs,
+    });
+  } catch (err) {
+    console.error("[admin/analytics]", err);
+    res.status(500).json({ error: "Failed to fetch analytics." });
+  }
+});
+
 export default router;

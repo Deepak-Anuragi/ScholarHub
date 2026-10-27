@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -96,7 +96,7 @@ router.post("/signup/student", async (req: Request, res: Response): Promise<void
       return;
     }
 
-    const { name, email, phone, password, city, state, examType, targetYear } = result.data;
+    const { name, email, phone, password, city, state, examType, targetYear, referralCode } = result.data;
 
     await connectDB();
 

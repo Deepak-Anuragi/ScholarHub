@@ -1,4 +1,4 @@
-import { Router, Request, Response } from "express";
+﻿import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
@@ -207,13 +207,20 @@ router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> =>
   const page = Number(req.query.page ?? 1);
   const limit = Number(req.query.limit ?? 5);
   const skip = (page - 1) * limit;
+  const sortParam = req.query.sort as string | undefined;
+  const sortObj = sortParam === "helpful" ? { helpfulCount: -1 } : { createdAt: -1 };
+  const sessionUser = (req as Request & { sessionUser?: { id: string } }).sessionUser;
   try {
     await connectDB();
     const [reviews, total] = await Promise.all([
-      ReviewModel.find({ libraryId: req.params.id }).populate("studentId", "name avatarUrl").sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+      ReviewModel.find({ libraryId: req.params.id }).populate("studentId", "name avatarUrl").sort(sortObj as Record<string, 1 | -1>).skip(skip).limit(limit).lean(),
       ReviewModel.countDocuments({ libraryId: req.params.id }),
     ]);
-    res.json({ reviews, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
+    const reviewsWithVote = reviews.map((r) => ({
+      ...r,
+      hasVoted: sessionUser ? (r.helpfulVoters ?? []).some((v) => v.toString() === sessionUser.id) : false,
+    }));
+    res.json({ reviews: reviewsWithVote, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (err) {
     if (isDatabaseUnavailable(err)) {
       console.error("[reviews GET] database unavailable", err);
@@ -226,6 +233,30 @@ router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> =>
 });
 
 // ── GET /api/libraries/:id/seat-map ──────────────────────────────────────
+// -- POST /api/libraries/:id/reviews/:reviewId/helpful (Req 8.1, 8.2)
+router.post("/:id/reviews/:reviewId/helpful", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = (req as Request & { sessionUser?: { id: string } }).sessionUser;
+    if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    await connectDB();
+    const studentOid = new mongoose.Types.ObjectId(user.id);
+    const review = await ReviewModel.findById(req.params.reviewId);
+    if (!review) { res.status(404).json({ error: "Review not found." }); return; }
+    const alreadyVoted = review.helpfulVoters.some((v) => v.toString() === user.id);
+    if (alreadyVoted) {
+      review.helpfulVoters = review.helpfulVoters.filter((v) => v.toString() !== user.id);
+      review.helpfulCount = Math.max(0, review.helpfulCount - 1);
+    } else {
+      review.helpfulVoters.push(studentOid);
+      review.helpfulCount = review.helpfulCount + 1;
+    }
+    await review.save();
+    res.json({ helpfulCount: review.helpfulCount, hasVoted: !alreadyVoted });
+  } catch (err) {
+    console.error("[reviews/helpful]", err);
+    res.status(500).json({ error: "Failed to update helpful vote." });
+  }
+});
 router.get("/:id/seat-map", async (req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();

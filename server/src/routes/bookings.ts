@@ -1,4 +1,4 @@
-import crypto from "crypto";
+﻿import crypto from "crypto";
 import { Router, Request, Response } from "express";
 
 import connectDB from "../lib/mongodb";
@@ -111,7 +111,32 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
       }
     }
 
-    const total = baseTotal - discountAmount;
+    // Coupon discount
+    let couponDiscount = 0;
+    let appliedCouponCode: string | undefined;
+    if (couponCode) {
+      try {
+        const CouponModel = (await import("../models/Coupon")).default;
+        const now = new Date();
+        const coupon = await CouponModel.findOne({
+          code: couponCode.toUpperCase(),
+          isActive: true,
+          expiresAt: { $gt: now },
+        });
+        if (coupon && coupon.usedCount < coupon.maxUses) {
+          const subtotal = baseTotal - discountAmount;
+          const potential = coupon.discountType === "percent"
+            ? Math.floor(subtotal * coupon.discountValue / 100)
+            : coupon.discountValue;
+          if (subtotal - potential >= 1) {
+            couponDiscount = potential;
+            appliedCouponCode = coupon.code;
+            await CouponModel.findByIdAndUpdate(coupon._id, { $inc: { usedCount: 1 } });
+          }
+        }
+      } catch { /* coupon lookup failure is non-critical */ }
+    }
+    const total = baseTotal - discountAmount - couponDiscount;
 
     let razorpayOrderId: string;
     let razorpayKeyId: string | undefined;
@@ -140,7 +165,7 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
       razorpay_key_id: razorpayKeyId, amount: total, library_fee: libraryFee,
       platform_fee: platformFee, currency: "INR", library_name: library.name,
       plan, start_date: start.toISOString(), end_date: end.toISOString(),
-      discountAmount, creditsRemaining,
+      discountAmount, creditsRemaining, couponDiscount, couponCode: appliedCouponCode,
     });
   } catch (err) {
     console.error("[create-order]", err);

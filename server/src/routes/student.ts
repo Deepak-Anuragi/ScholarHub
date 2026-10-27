@@ -664,6 +664,7 @@ router.post("/reviews", async (req: Request, res: Response): Promise<void> => {
       rating,
       comment:    comment?.trim() || undefined,
       isVerified: true,
+      photos:     photos ?? [],
     });
 
     // Update library ratingAvg + reviewCount
@@ -713,6 +714,25 @@ router.patch("/reviews/:id", async (req: Request, res: Response): Promise<void> 
 
     if (rating && rating >= 1 && rating <= 5) review.rating = rating;
     if (comment !== undefined) review.comment = comment.trim() || undefined;
+
+    // Update photos if provided
+    const patchBody = req.body as { photos?: string[] };
+    if (patchBody.photos !== undefined) {
+      if (patchBody.photos.length > 5) {
+        res.status(400).json({ error: "A maximum of 5 photos per review is allowed." });
+        return;
+      }
+      for (const url of patchBody.photos) {
+        try {
+          const parsed = new URL(url);
+          if (parsed.protocol !== "https:") throw new Error();
+        } catch {
+          res.status(400).json({ error: "Photo URLs must be well-formed HTTPS URLs." });
+          return;
+        }
+      }
+      review.photos = patchBody.photos;
+    }
 
     await review.save();
     const populated = await review.populate([
@@ -785,6 +805,66 @@ router.patch("/profile", async (req: Request, res: Response): Promise<void> => {
   } catch (err) {
     console.error("[student/profile PATCH]", err);
     res.status(500).json({ error: "Failed to update profile." });
+  }
+});
+
+// GET /api/student/referral (Req 11.1)
+router.get("/referral", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const dbUser = await UserModel.findById(user.id).select("referralCredits").lean();
+    const referralCode = user.id.toString().slice(0, 8).toUpperCase();
+    res.json({ referralCode, referralCredits: (dbUser as Record<string, unknown>)?.referralCredits ?? 0 });
+  } catch (err) {
+    console.error("[student/referral]", err);
+    res.status(500).json({ error: "Failed to fetch referral info." });
+  }
+});
+
+// POST /api/student/disputes
+router.post("/disputes", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const { libraryId, bookingId, subject, description } = req.body as {
+      libraryId?: string; bookingId?: string; subject?: string; description?: string;
+    };
+    if (!libraryId || !subject || !description) {
+      res.status(400).json({ error: "libraryId, subject, and description are required." });
+      return;
+    }
+    const DisputeModel = (await import("../models/Dispute")).default;
+    const dispute = await DisputeModel.create({
+      studentId: user.id,
+      libraryId,
+      ...(bookingId ? { bookingId } : {}),
+      subject: subject.trim(),
+      description: description.trim(),
+      status: "open",
+    });
+    res.status(201).json({ dispute });
+  } catch (err) {
+    console.error("[student/disputes POST]", err);
+    res.status(500).json({ error: "Failed to create dispute." });
+  }
+});
+
+// GET /api/student/disputes
+router.get("/disputes", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const DisputeModel = (await import("../models/Dispute")).default;
+    const disputes = await DisputeModel.find({ studentId: user.id })
+      .populate("libraryId", "name city")
+      .populate("bookingId", "plan startDate endDate")
+      .sort({ createdAt: -1 })
+      .lean();
+    res.json({ disputes });
+  } catch (err) {
+    console.error("[student/disputes GET]", err);
+    res.status(500).json({ error: "Failed to fetch disputes." });
   }
 });
 
