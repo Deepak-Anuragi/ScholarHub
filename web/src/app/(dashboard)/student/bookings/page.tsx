@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookMarked, Clock } from "lucide-react";
+import { BookMarked, Clock, Download } from "lucide-react";
+import { downloadReceipt, type ReceiptData } from "@/components/booking/ReceiptPDF";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
@@ -56,6 +57,7 @@ export default function BookingsPage() {
   const [past, setPast] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [idModal, setIdModal] = useState<Booking | null>(null);
+  const [downloading, setDownloading] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -70,6 +72,18 @@ export default function BookingsPage() {
       })
       .finally(() => setLoading(false));
   }, []);
+
+  const handleDownload = async (b: Booking) => {
+    setDownloading(b._id);
+    try {
+      const data = await api.get<ReceiptData>(/student/bookings//receipt);
+      await downloadReceipt(data, b._id);
+    } catch {
+      alert("Failed to download receipt. Please try again.");
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   const BookingRow = ({ b }: { b: Booking }) => (
     <div className="rounded-2xl border border-line bg-white p-4">
@@ -111,16 +125,33 @@ export default function BookingsPage() {
         </div>
       </div>
 
-      {b.status === "ACTIVE" && (
-        <button
-          type="button"
-          onClick={() => setIdModal(b)}
-          className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#16a34a]/10 px-3 py-1.5 text-xs font-semibold text-[#16a34a] transition hover:bg-[#16a34a]/20"
-        >
-          <BookMarked className="size-3.5" />
-          View Digital ID
-        </button>
-      )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        {b.status === "ACTIVE" && (
+          <button
+            type="button"
+            onClick={() => setIdModal(b)}
+            className="inline-flex items-center gap-1.5 rounded-full bg-[#16a34a]/10 px-3 py-1.5 text-xs font-semibold text-[#16a34a] transition hover:bg-[#16a34a]/20"
+          >
+            <BookMarked className="size-3.5" />
+            View Digital ID
+          </button>
+        )}
+        {b.paymentStatus === "SUCCESS" && (
+          <button
+            type="button"
+            onClick={() => void handleDownload(b)}
+            disabled={downloading === b._id}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-forest-900/70 transition hover:text-forest-900 disabled:opacity-50"
+          >
+            {downloading === b._id ? (
+              <span className="size-3.5 animate-spin rounded-full border-2 border-forest-900/20 border-t-forest-900/60" />
+            ) : (
+              <Download className="size-3.5" />
+            )}
+            Receipt
+          </button>
+        )}
+      </div>
     </div>
   );
 

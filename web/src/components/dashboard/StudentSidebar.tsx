@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -32,6 +32,8 @@ const NAV: DashboardNavLink[] = [
   { href: "/student/payments", label: "Payments",   icon: CreditCard },
   { href: "/student/courses",  label: "Courses",    icon: GraduationCap },
   { href: "/student/reviews",  label: "Reviews",    icon: Star },
+  { href: "/student/wishlist", label: "Wishlist",   icon: Bookmark },
+  { href: "/student/referral", label: "Referral",   icon: Gift },
   { href: "/student/waitlist", label: "Waitlist",   icon: Users },
   { href: "/student/chat",     label: "Chat",       icon: MessageCircle },
   { href: "/student/profile",  label: "Profile",    icon: User },

@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -27,7 +27,10 @@ const NAV: DashboardNavLink[] = [
   { href: "/admin/libraries",      label: "Libraries",      icon: Building2 },
   { href: "/admin/students",       label: "Students",       icon: Users },
   { href: "/admin/revenue",        label: "Revenue",        icon: TrendingUp },
+  { href: "/admin/analytics",      label: "Analytics",      icon: BarChart3 },
   { href: "/admin/courses",        label: "Courses",        icon: GraduationCap },
+  { href: "/admin/disputes",       label: "Disputes",       icon: AlertCircle },
+  { href: "/admin/coupons",        label: "Coupons",        icon: Ticket },
   { href: "/admin/notifications",  label: "Notifications",  icon: Bell, shortLabel: "Alerts" },
   { href: "/admin/chat",           label: "Chat Monitor",   icon: MessageCircle, shortLabel: "Chat" },
 ];
