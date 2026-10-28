@@ -34,6 +34,8 @@ CLAUDE.md
 AGENTS.md
 .cursorrules
 .cursor/
+.kiro/
+.trae/
 
 # Planning documents belong outside the repo, not in version control
 PLAN.md
