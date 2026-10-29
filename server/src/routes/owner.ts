@@ -45,6 +45,7 @@ const EDITABLE_LIBRARY_FIELDS = [
   "closeTime",
   "lat",
   "lng",
+  "bookingApprovalMode",
 ] as const;
 
 /** Slot fields an owner may change. libraryId is deliberately absent. */

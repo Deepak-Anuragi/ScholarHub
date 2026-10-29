@@ -350,8 +350,8 @@ function CourseModal({
                   errors.fileUrl
                     ? "border-red-400 bg-red-50/20"
                     : fileUrl
-                    ? "border-[#16a34a]/40 bg-[#16a34a]/5"
-                    : "border-line hover:border-forest-900/30 bg-sage-100/20"
+                      ? "border-[#16a34a]/40 bg-[#16a34a]/5"
+                      : "border-line hover:border-forest-900/30 bg-sage-100/20"
                 )}
               >
                 <input
@@ -536,7 +536,7 @@ export default function AdminCoursesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-line bg-sage-100/50 text-left text-xs font-semibold uppercase tracking-wide text-forest-900/40">
-                      {["Title","Subject","Exam Types","Enrolled","Top Rated (Home)","Created By","Date",""].map((h) => (
+                      {["Title", "Subject", "Exam Types", "Enrolled", "Top Rated (Home)", "Created By", "Date", ""].map((h) => (
                         <th key={h} className="px-4 py-2.5 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>

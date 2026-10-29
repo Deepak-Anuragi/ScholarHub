@@ -86,7 +86,7 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
     await connectDB();
     const library = await LibraryModel.findById(libraryId);
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
-    if (library.status === "SUSPENDED") {
+    if (library.isActive === false || library.isSuspended === true || (library as any).status === "SUSPENDED") {
       res.status(400).json({ error: "This library is currently suspended and cannot accept new bookings." });
       return;
     }
@@ -383,6 +383,12 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
       }
     }
 
+    const isManualApproval = library?.bookingApprovalMode === "MANUAL_APPROVAL";
+    if (isManualApproval) {
+      booking.approvalStatus = "PENDING";
+      await booking.save();
+    }
+
     // Professional booking notification for Library Owner (Req 6.6)
     if (library?.ownerId) {
       const studentUser = await UserModel.findById(user.id).select("name phone email").lean();
@@ -393,8 +399,10 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
       await NotificationModel.create({
         userId: library.ownerId,
         type: "NEW_BOOKING",
-        title: "New Student Booking Confirmed!",
-        message: `${studentUser?.name || "A student"} has booked a seat at ${library.name}${slotDetail}${seatDetail} under the ${booking.plan} plan. Payout of ₹${booking.libraryFee} credited to ledger.`,
+        title: isManualApproval ? "New Booking Awaiting Approval!" : "New Student Booking Confirmed!",
+        message: isManualApproval
+          ? `${studentUser?.name || "A student"} has requested a seat at ${library.name}${slotDetail}${seatDetail} under the ${booking.plan} plan. Please review and approve in Bookings.`
+          : `${studentUser?.name || "A student"} has booked a seat at ${library.name}${slotDetail}${seatDetail} under the ${booking.plan} plan. Payout of ₹${booking.libraryFee} credited to ledger.`,
         link: "/owner/bookings",
       });
       await emitNotificationCount(String(library.ownerId));
@@ -404,8 +412,12 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
     await NotificationModel.create({
       userId: user.id,
       type: "BOOKING_CONFIRMED",
-      title: `Booking Confirmed at ${library?.name || "Library"}`,
-      message: `Your booking at ${library?.name || "the library"} is now active! Plan: ${booking.plan}. Your Digital ID pass is ready.`,
+      title: isManualApproval
+        ? `Booking Request Received for ${library?.name || "Library"}`
+        : `Booking Confirmed at ${library?.name || "Library"}`,
+      message: isManualApproval
+        ? `Your reservation at ${library?.name || "the library"} is pending owner confirmation. You will be notified once approved!`
+        : `Your booking at ${library?.name || "the library"} is now active! Plan: ${booking.plan}. Your Digital ID pass is ready.`,
       link: "/student/bookings",
     });
     await emitNotificationCount(user.id);

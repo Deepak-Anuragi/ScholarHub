@@ -57,6 +57,7 @@ type Library = {
   facilities: string[];
   studentTypes: string[];
   photos: Photo[];
+  bookingApprovalMode?: "INSTANT" | "MANUAL_APPROVAL";
 };
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -500,6 +501,69 @@ export default function OwnerLibraryPage() {
               <Field label="Monthly Fee (₹)" name="monthlyFee" type="number" value={form.monthlyFee ?? 0} onChange={set} required error={fieldErrors.monthlyFee} />
               <Field label="Quarterly Fee (₹)" name="quarterlyFee" type="number" value={form.quarterlyFee ?? 0} onChange={set} />
               <Field label="Annual Fee (₹)" name="annualFee" type="number" value={form.annualFee ?? 0} onChange={set} />
+            </div>
+          </Section>
+        </AnimatedContent>
+
+        {/* Booking Confirmation Workflow */}
+        <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.09}>
+          <Section title="Booking Approval Workflow">
+            <p className="mb-3 text-xs text-forest-900/60">
+              Choose how student reservations are processed at your library.
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition",
+                  (form.bookingApprovalMode ?? "INSTANT") === "INSTANT"
+                    ? "border-emerald-600 bg-emerald-50/40 ring-1 ring-emerald-600"
+                    : "border-line bg-white hover:border-forest-700/40"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="bookingApprovalMode"
+                  value="INSTANT"
+                  checked={(form.bookingApprovalMode ?? "INSTANT") === "INSTANT"}
+                  onChange={() => setForm((p) => ({ ...p, bookingApprovalMode: "INSTANT" }))}
+                  className="mt-0.5 accent-emerald-600"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 font-medium text-forest-900 text-sm">
+                    <span>⚡ Instant Booking</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800">Recommended</span>
+                  </div>
+                  <p className="mt-1 text-xs text-forest-900/60">
+                    Seats are automatically confirmed immediately upon payment. No manual approval required.
+                  </p>
+                </div>
+              </label>
+
+              <label
+                className={cn(
+                  "flex cursor-pointer items-start gap-3 rounded-xl border p-4 transition",
+                  form.bookingApprovalMode === "MANUAL_APPROVAL"
+                    ? "border-emerald-600 bg-emerald-50/40 ring-1 ring-emerald-600"
+                    : "border-line bg-white hover:border-forest-700/40"
+                )}
+              >
+                <input
+                  type="radio"
+                  name="bookingApprovalMode"
+                  value="MANUAL_APPROVAL"
+                  checked={form.bookingApprovalMode === "MANUAL_APPROVAL"}
+                  onChange={() => setForm((p) => ({ ...p, bookingApprovalMode: "MANUAL_APPROVAL" }))}
+                  className="mt-0.5 accent-emerald-600"
+                />
+                <div>
+                  <div className="flex items-center gap-1.5 font-medium text-forest-900 text-sm">
+                    <span>📝 Owner Confirmation</span>
+                  </div>
+                  <p className="mt-1 text-xs text-forest-900/60">
+                    Requires your manual review and approval in the Bookings dashboard before student seat access is finalized.
+                  </p>
+                </div>
+              </label>
             </div>
           </Section>
         </AnimatedContent>

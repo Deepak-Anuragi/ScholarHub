@@ -45,6 +45,8 @@ export interface ILibrary extends Document {
   isVerified: boolean;
   isFeatured?: boolean;
   isActive: boolean;
+  isSuspended?: boolean;
+  bookingApprovalMode?: "INSTANT" | "MANUAL_APPROVAL";
   ratingAvg: number;
   reviewCount: number;
   whatsapp?: string;
@@ -107,10 +109,12 @@ const LibrarySchema = new Schema<ILibrary>(
     facilities:     [{ type: String }],
     studentTypes:   [{ type: String }],
     photos:         [LibraryPhotoSchema],
-    isVerified:     { type: Boolean, default: false },
-    isFeatured:     { type: Boolean, default: false },
-    isActive:       { type: Boolean, default: true },
-    ratingAvg:      { type: Number, default: 0 },
+    isVerified:          { type: Boolean, default: false },
+    isFeatured:          { type: Boolean, default: false },
+    isActive:            { type: Boolean, default: true },
+    isSuspended:         { type: Boolean, default: false },
+    bookingApprovalMode: { type: String, enum: ["INSTANT", "MANUAL_APPROVAL"], default: "INSTANT" },
+    ratingAvg:           { type: Number, default: 0 },
     reviewCount:    { type: Number, default: 0 },
     whatsapp:       { type: String },
     contactEmail:   { type: String },
