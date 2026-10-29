@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import bcryptjs from "bcryptjs";
 import crypto from "crypto";
 import { z } from "zod";
@@ -88,6 +88,7 @@ router.post("/signup/student", async (req: Request, res: Response): Promise<void
       state:      z.string().min(2).max(50).transform((v: string) => v.trim()),
       examType:   z.enum(["UPSC", "JEE", "NEET", "SSC", "BANKING", "BOARD", "ENTRANCE", "OTHER"]),
       targetYear: z.number().int().optional(),
+      referralCode: z.string().trim().optional(),
     });
 
     const result = schema.safeParse(req.body);

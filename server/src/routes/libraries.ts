@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
@@ -65,7 +65,7 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
       newest:     { createdAt: -1 },
       seats:      { availableSeats: -1 },
     };
-    const sortObj = sortMap[sort as string] ?? sortMap.relevance;
+    const sortObj: Record<string, 1 | -1> = sortMap[sort as string] ?? sortMap.relevance;
     const pageNum = Number(page);
     const limitNum = Number(limit);
     const skip = (pageNum - 1) * limitNum;
@@ -208,17 +208,17 @@ router.get("/:id/reviews", async (req: Request, res: Response): Promise<void> =>
   const limit = Number(req.query.limit ?? 5);
   const skip = (page - 1) * limit;
   const sortParam = req.query.sort as string | undefined;
-  const sortObj = sortParam === "helpful" ? { helpfulCount: -1 } : { createdAt: -1 };
+  const sortObj: Record<string, 1 | -1> = sortParam === "helpful" ? { helpfulCount: -1 } : { createdAt: -1 };
   const sessionUser = (req as Request & { sessionUser?: { id: string } }).sessionUser;
   try {
     await connectDB();
     const [reviews, total] = await Promise.all([
-      ReviewModel.find({ libraryId: req.params.id }).populate("studentId", "name avatarUrl").sort(sortObj as Record<string, 1 | -1>).skip(skip).limit(limit).lean(),
+      ReviewModel.find({ libraryId: req.params.id }).populate("studentId", "name avatarUrl").sort(sortObj).skip(skip).limit(limit).lean(),
       ReviewModel.countDocuments({ libraryId: req.params.id }),
     ]);
     const reviewsWithVote = reviews.map((r) => ({
       ...r,
-      hasVoted: sessionUser ? (r.helpfulVoters ?? []).some((v) => v.toString() === sessionUser.id) : false,
+      hasVoted: sessionUser ? (r.helpfulVoters ?? []).some((v: any) => v.toString() === sessionUser.id) : false,
     }));
     res.json({ reviews: reviewsWithVote, total, page, totalPages: Math.max(1, Math.ceil(total / limit)) });
   } catch (err) {
@@ -242,9 +242,9 @@ router.post("/:id/reviews/:reviewId/helpful", async (req: Request, res: Response
     const studentOid = new mongoose.Types.ObjectId(user.id);
     const review = await ReviewModel.findById(req.params.reviewId);
     if (!review) { res.status(404).json({ error: "Review not found." }); return; }
-    const alreadyVoted = review.helpfulVoters.some((v) => v.toString() === user.id);
+    const alreadyVoted = review.helpfulVoters.some((v: any) => v.toString() === user.id);
     if (alreadyVoted) {
-      review.helpfulVoters = review.helpfulVoters.filter((v) => v.toString() !== user.id);
+      review.helpfulVoters = review.helpfulVoters.filter((v: any) => v.toString() !== user.id);
       review.helpfulCount = Math.max(0, review.helpfulCount - 1);
     } else {
       review.helpfulVoters.push(studentOid);

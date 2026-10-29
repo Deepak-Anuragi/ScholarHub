@@ -1,4 +1,4 @@
-﻿import crypto from "crypto";
+import crypto from "crypto";
 import { Router, Request, Response } from "express";
 
 import connectDB from "../lib/mongodb";
@@ -17,10 +17,11 @@ const router = Router();
 router.post("/create-order", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {
     const user = req.sessionUser!;
-    const { libraryId, slotId, plan, startDate, seatNumber } = req.body as {
+    const { libraryId, slotId, plan, startDate, seatNumber, couponCode } = req.body as {
       libraryId?: string; slotId?: string;
       plan?: "MONTHLY" | "QUARTERLY" | "ANNUAL"; startDate?: string;
       seatNumber?: string;
+      couponCode?: string;
     };
 
     if (!libraryId || !plan || !startDate) {

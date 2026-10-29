@@ -628,10 +628,11 @@ router.post("/reviews", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const id = new mongoose.Types.ObjectId(user.id);
 
-    const { bookingId, rating, comment } = req.body as {
+    const { bookingId, rating, comment, photos } = req.body as {
       bookingId?: string;
       rating?: number;
       comment?: string;
+      photos?: string[];
     };
 
     if (!bookingId || !rating || rating < 1 || rating > 5) {
