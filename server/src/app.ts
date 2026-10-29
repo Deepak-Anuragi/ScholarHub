@@ -14,6 +14,7 @@ import ownerRoutes from "./routes/owner";
 import studentRoutes from "./routes/student";
 import adminRoutes from "./routes/admin";
 import notificationsRoutes from "./routes/notifications";
+import pushRoutes from "./routes/push";
 
 /**
  * Every origin CLIENT_URL names, plus any localhost outside production.
@@ -68,6 +69,7 @@ export function createApp(): Express {
   app.use("/api/student", studentRoutes);
   app.use("/api/admin", adminRoutes);
   app.use("/api/notifications", notificationsRoutes);
+  app.use("/api/push", pushRoutes);
 
   app.get("/health", (_req, res) => {
     res.json({ status: "ok", timestamp: new Date().toISOString() });

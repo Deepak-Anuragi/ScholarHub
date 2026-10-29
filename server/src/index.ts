@@ -61,36 +61,51 @@ io.on("connection", (socket: AuthenticatedSocket) => {
     socket.join(roomId);
   });
 
-  socket.on("send_message", async (data: { to: string; content: string; libraryId?: string }) => {
-    try {
-      if (!socket.userId || !data.to || !data.content?.trim()) return;
-      await connectDB();
-      const roomId = getRoomId(socket.userId, data.to);
+  socket.on(
+    "send_message",
+    async (data: {
+      to: string;
+      content?: string;
+      libraryId?: string;
+      fileUrl?: string;
+      fileType?: "image" | "file";
+    }) => {
+      try {
+        if (!socket.userId || !data.to || (!data.content?.trim() && !data.fileUrl?.trim()))
+          return;
+        await connectDB();
+        const roomId = getRoomId(socket.userId, data.to);
 
-      const msg = await MessageModel.create({
-        senderId: socket.userId,
-        receiverId: data.to,
-        content: data.content.trim(),
-        ...(data.libraryId ? { libraryId: data.libraryId } : {}),
-      });
+        const msg = await MessageModel.create({
+          senderId: socket.userId,
+          receiverId: data.to,
+          content: data.content?.trim() || (data.fileType === "image" ? "📷 Image" : "📎 Attachment"),
+          ...(data.fileUrl ? { fileUrl: data.fileUrl.trim(), fileType: data.fileType || "image" } : {}),
+          ...(data.libraryId ? { libraryId: data.libraryId } : {}),
+        });
 
-      await msg.populate("senderId", "name avatarUrl");
+        await msg.populate("senderId", "name avatarUrl");
 
-      const serializedMsg = {
-        ...msg.toObject(),
-        _id: String(msg._id),
-        senderId: msg.senderId && typeof msg.senderId === "object"
-          ? { ...(msg.senderId as Record<string, unknown>), _id: String((msg.senderId as { _id: unknown })._id) }
-          : String(msg.senderId),
-        receiverId: String(msg.receiverId),
-      };
+        const serializedMsg = {
+          ...msg.toObject(),
+          _id: String(msg._id),
+          senderId:
+            msg.senderId && typeof msg.senderId === "object"
+              ? {
+                  ...(msg.senderId as Record<string, unknown>),
+                  _id: String((msg.senderId as { _id: unknown })._id),
+                }
+              : String(msg.senderId),
+          receiverId: String(msg.receiverId),
+        };
 
-      io.to(roomId).emit("message_received", serializedMsg);
-      io.to(data.to).emit("message_received", serializedMsg);
-    } catch (err) {
-      console.error("[socket send_message]", err);
+        io.to(roomId).emit("message_received", serializedMsg);
+        io.to(data.to).emit("message_received", serializedMsg);
+      } catch (err) {
+        console.error("[socket send_message]", err);
+      }
     }
-  });
+  );
 
   socket.on("typing", (data: { to: string }) => {
     if (!socket.userId || !data.to) return;

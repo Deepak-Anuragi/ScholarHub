@@ -9,6 +9,10 @@ import {
   MessageSquare,
   ArrowLeft,
   Circle,
+  Paperclip,
+  Image as ImageIcon,
+  FileText,
+  X,
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
@@ -67,6 +71,9 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
   const [activeOtherId, setActiveOtherId] = useState<string | null>(null);
   const [activeUser, setActiveUser] = useState<Thread["otherUser"]>(null);
   const [inputText, setInputText] = useState("");
+  const [attachedFile, setAttachedFile] = useState<{ url: string; type: "image" | "file" } | null>(null);
+  const [showAttachInput, setShowAttachInput] = useState(false);
+  const [fileUrlInput, setFileUrlInput] = useState("");
   const [loadingThreads, setLoadingThreads] = useState(true);
   const [loadingMessages, setLoadingMessages] = useState(false);
 
@@ -172,21 +179,32 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
   }, [messages, activeOtherId, currentUserId]);
 
   const handleSend = () => {
-    if (!activeOtherId || !inputText.trim() || readOnly) return;
+    if (!activeOtherId || (!inputText.trim() && !attachedFile) || readOnly) return;
     const text = inputText.trim();
-    sendMessage(activeOtherId, text);
+    sendMessage(
+      activeOtherId,
+      text,
+      undefined,
+      attachedFile?.url,
+      attachedFile?.type
+    );
 
     // Optimistic local add
     const optimisticMsg: ChatMessage = {
       _id: `temp_${Date.now()}`,
       senderId: currentUserId,
       receiverId: activeOtherId,
-      content: text,
+      content: text || (attachedFile?.type === "image" ? "📷 Image" : "📎 Attachment"),
+      fileUrl: attachedFile?.url,
+      fileType: attachedFile?.type,
       isRead: false,
       createdAt: new Date().toISOString(),
     };
     setMessages((prev) => [...prev, optimisticMsg]);
     setInputText("");
+    setAttachedFile(null);
+    setShowAttachInput(false);
+    setFileUrlInput("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -408,7 +426,38 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
                               : "bg-white border border-line text-forest-900 rounded-bl-none"
                           )}
                         >
-                          {m.content}
+                          {m.content && <p>{m.content}</p>}
+                          {m.fileUrl && (
+                            <div className="mt-1.5">
+                              {m.fileType === "image" ? (
+                                <a
+                                  href={m.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="block overflow-hidden rounded-xl border border-white/20"
+                                >
+                                  <img
+                                    src={m.fileUrl}
+                                    alt="Shared attachment"
+                                    className="max-h-48 w-auto rounded-xl object-cover transition hover:opacity-95"
+                                  />
+                                </a>
+                              ) : (
+                                <a
+                                  href={m.fileUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className={cn(
+                                    "inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs underline",
+                                    isMine ? "bg-white/15 text-white" : "bg-sage-100 text-forest-900"
+                                  )}
+                                >
+                                  <FileText className="size-3.5" />
+                                  <span>View Attachment</span>
+                                </a>
+                              )}
+                            </div>
+                          )}
                         </div>
                         <div className="mt-1 flex items-center gap-1 text-[10px] text-forest-900/40 px-1">
                           <span>{fmtTime(m.createdAt)}</span>
@@ -447,8 +496,76 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
 
             {/* Input Bar */}
             {!readOnly && (
-              <div className="border-t border-line p-3 bg-white">
+              <div className="border-t border-line p-3 bg-white space-y-2">
+                {/* Attached file preview */}
+                {attachedFile && (
+                  <div className="flex items-center justify-between rounded-xl border border-[#16a34a]/30 bg-[#16a34a]/10 px-3 py-1.5 text-xs text-[#16a34a]">
+                    <div className="flex items-center gap-2 truncate">
+                      {attachedFile.type === "image" ? (
+                        <ImageIcon className="size-3.5 shrink-0" />
+                      ) : (
+                        <FileText className="size-3.5 shrink-0" />
+                      )}
+                      <span className="truncate">{attachedFile.url}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setAttachedFile(null)}
+                      className="ml-2 rounded-full p-0.5 hover:bg-[#16a34a]/20"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* Attach link input modal/inline */}
+                {showAttachInput && !attachedFile && (
+                  <div className="flex items-center gap-2 rounded-xl border border-line bg-sage-100/40 p-2">
+                    <input
+                      type="url"
+                      value={fileUrlInput}
+                      onChange={(e) => setFileUrlInput(e.target.value)}
+                      placeholder="Paste image or file HTTPS URL…"
+                      className="flex-1 bg-white border border-line rounded-lg px-2.5 py-1 text-xs outline-none focus:border-[#16a34a]"
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        const trimmed = fileUrlInput.trim();
+                        if (!trimmed.startsWith("https://")) {
+                          alert("URL must start with https://");
+                          return;
+                        }
+                        const isImg = /\.(jpeg|jpg|gif|png|webp|svg)($|\?)/i.test(trimmed);
+                        setAttachedFile({ url: trimmed, type: isImg ? "image" : "file" });
+                        setShowAttachInput(false);
+                        setFileUrlInput("");
+                      }}
+                      disabled={!fileUrlInput.trim()}
+                      className="h-7 text-xs bg-[#16a34a] text-white hover:bg-[#15803d]"
+                    >
+                      Attach
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => setShowAttachInput(false)}
+                      className="text-forest-900/40 hover:text-forest-900"
+                    >
+                      <X className="size-3.5" />
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-end gap-2 rounded-2xl border border-line bg-sage-100/30 p-2 focus-within:border-[#16a34a] focus-within:ring-2 focus-within:ring-[#16a34a]/20">
+                  <button
+                    type="button"
+                    onClick={() => setShowAttachInput((prev) => !prev)}
+                    title="Attach file or image"
+                    className="flex size-8 shrink-0 items-center justify-center rounded-xl text-forest-900/60 hover:bg-sage-100 hover:text-forest-900 transition"
+                  >
+                    <Paperclip className="size-4" />
+                  </button>
                   <textarea
                     value={inputText}
                     onChange={handleInputChange}
@@ -459,7 +576,7 @@ export function ChatWindow({ currentUserId, token, readOnly = false }: ChatWindo
                   />
                   <Button
                     onClick={handleSend}
-                    disabled={!inputText.trim()}
+                    disabled={!inputText.trim() && !attachedFile}
                     size="icon"
                     className="size-8 rounded-xl bg-[#16a34a] text-white hover:bg-[#15803d] disabled:opacity-40"
                   >

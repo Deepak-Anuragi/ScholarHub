@@ -117,20 +117,35 @@ router.post("/:userId", requireAuth, async (req: Request, res: Response): Promis
   try {
     const session = req.sessionUser!;
     await connectDB();
-    const { content, libraryId } = req.body as { content?: string; libraryId?: string };
+    const { content, libraryId, fileUrl, fileType } = req.body as {
+      content?: string;
+      libraryId?: string;
+      fileUrl?: string;
+      fileType?: "image" | "file";
+    };
 
-    if (!content?.trim()) { res.status(400).json({ error: "content is required" }); return; }
+    if (!content?.trim() && !fileUrl?.trim()) {
+      res.status(400).json({ error: "content or fileUrl is required" });
+      return;
+    }
 
     const msg = await MessageModel.create({
-      senderId: session.id, receiverId: req.params.userId,
-      content: content.trim(), ...(libraryId ? { libraryId } : {}),
+      senderId: session.id,
+      receiverId: req.params.userId,
+      content: content?.trim() || (fileType === "image" ? "📷 Image" : "📎 Attachment"),
+      ...(fileUrl ? { fileUrl: fileUrl.trim(), fileType: fileType || "image" } : {}),
+      ...(libraryId ? { libraryId } : {}),
     });
     await msg.populate("senderId", "name avatarUrl");
 
     res.status(201).json({
       message: {
-        ...msg.toObject(), _id: String(msg._id),
-        senderId: { ...(msg.senderId as Record<string, unknown>), _id: String((msg.senderId as { _id: unknown })._id) },
+        ...msg.toObject(),
+        _id: String(msg._id),
+        senderId: {
+          ...(msg.senderId as Record<string, unknown>),
+          _id: String((msg.senderId as { _id: unknown })._id),
+        },
         receiverId: String(msg.receiverId),
       },
     });

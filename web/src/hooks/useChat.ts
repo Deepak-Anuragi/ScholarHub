@@ -6,6 +6,8 @@ export type ChatMessage = {
   senderId: string | { _id: string; name: string; avatarUrl?: string };
   receiverId: string;
   content: string;
+  fileUrl?: string;
+  fileType?: "image" | "file";
   isRead?: boolean;
   libraryId?: string;
   createdAt: string;
@@ -70,12 +72,14 @@ export function useChat(currentUserId?: string, token?: string) {
   );
 
   const sendMessage = useCallback(
-    (to: string, content: string, libraryId?: string) => {
-      if (!to || !content.trim()) return;
+    (to: string, content: string, libraryId?: string, fileUrl?: string, fileType?: "image" | "file") => {
+      if (!to || (!content.trim() && !fileUrl?.trim())) return;
       socketRef.current?.emit("send_message", {
         to,
         content: content.trim(),
         libraryId,
+        fileUrl: fileUrl?.trim(),
+        fileType,
       });
     },
     []

@@ -42,3 +42,51 @@ self.addEventListener("fetch", (event) => {
     })
   );
 });
+
+// ── Web Push Notifications ──────────────────────────────────────────────────
+self.addEventListener("push", (event) => {
+  let payload = {
+    title: "Scholar's Hub",
+    body: "You have a new update regarding your booking.",
+    link: "/student/bookings",
+  };
+
+  if (event.data) {
+    try {
+      payload = event.data.json();
+    } catch (e) {
+      payload.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: payload.body,
+    icon: "/icons/icon-192.png",
+    badge: "/icons/icon-72.png",
+    vibrate: [100, 50, 100],
+    data: { link: payload.link || "/student/bookings" },
+  };
+
+  event.waitUntil(self.registration.showNotification(payload.title, options));
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const targetUrl =
+    event.notification.data && event.notification.data.link
+      ? event.notification.data.link
+      : "/student/bookings";
+
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      for (const client of windowClients) {
+        if (client.url === targetUrl && "focus" in client) {
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});

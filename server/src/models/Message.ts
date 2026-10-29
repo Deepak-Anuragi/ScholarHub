@@ -5,6 +5,8 @@ export interface IMessage extends Document {
   receiverId: Types.ObjectId;
   libraryId?: Types.ObjectId;
   content: string;
+  fileUrl?: string;
+  fileType?: "image" | "file";
   isRead: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -15,7 +17,9 @@ const MessageSchema = new Schema<IMessage>(
     senderId:   { type: Schema.Types.ObjectId, ref: "User", required: true },
     receiverId: { type: Schema.Types.ObjectId, ref: "User", required: true },
     libraryId:  { type: Schema.Types.ObjectId, ref: "Library" },
-    content:    { type: String, required: true, trim: true },
+    content:    { type: String, trim: true, default: "" },
+    fileUrl:    { type: String },
+    fileType:   { type: String, enum: ["image", "file"] },
     isRead:     { type: Boolean, default: false },
   },
   { timestamps: true }
