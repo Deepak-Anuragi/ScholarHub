@@ -1,14 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Star, MessageSquarePlus } from "lucide-react";
+import { Star, MessageSquarePlus, Edit2, X } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 import { api } from "@/lib/api";
-import { Edit2 } from "lucide-react";
 
 type Review = {
   _id: string;
@@ -16,6 +15,7 @@ type Review = {
   bookingId: { plan: string; startDate: string; endDate: string } | null;
   rating: number;
   comment?: string;
+  photos?: string[];
   isVerified: boolean;
   ownerReply?: string;
   createdAt: string;
@@ -101,6 +101,8 @@ export default function ReviewsPage() {
   const [editingReview, setEditingReview]   = useState<Review | null>(null);
   const [rating, setRating]                 = useState(0);
   const [comment, setComment]               = useState("");
+  const [photos, setPhotos]                 = useState<string[]>([]);
+  const [photoUrlInput, setPhotoUrlInput]   = useState("");
   const [submitting, setSubmitting]         = useState(false);
   const [submitError, setSubmitError]       = useState("");
 
@@ -128,19 +130,30 @@ export default function ReviewsPage() {
     setSubmitError("");
     try {
       if (editingReview) {
-        const res = await api.patch<{ review: Review }>(`/student/reviews/${editingReview._id}`, { rating, comment });
+        const res = await api.patch<{ review: Review }>(`/student/reviews/${editingReview._id}`, {
+          rating,
+          comment,
+          photos,
+        });
         if (res.review) {
           setReviews((prev) => prev.map((r) => (r._id === res.review._id ? res.review : r)));
         }
         setEditingReview(null);
       } else if (composing) {
-        const res = await api.post<{ review: Review }>("/student/reviews", { bookingId: composing._id, rating, comment });
+        const res = await api.post<{ review: Review }>("/student/reviews", {
+          bookingId: composing._id,
+          rating,
+          comment,
+          photos,
+        });
         if (res.review) setReviews((prev) => [res.review, ...prev]);
         setEligible((prev) => prev.filter((b) => b._id !== composing._id));
         setComposing(null);
       }
       setRating(0);
       setComment("");
+      setPhotos([]);
+      setPhotoUrlInput("");
     } catch (err) {
       setSubmitError((err as Error)?.message || "Failed to submit review.");
     } finally {
@@ -187,8 +200,11 @@ export default function ReviewsPage() {
                     size="sm"
                     onClick={() => {
                       setComposing(b);
+                      setEditingReview(null);
                       setRating(0);
                       setComment("");
+                      setPhotos([]);
+                      setPhotoUrlInput("");
                       setSubmitError("");
                     }}
                     className="shrink-0 bg-[#16a34a] text-white hover:bg-[#15803d]"
@@ -203,16 +219,20 @@ export default function ReviewsPage() {
         </AnimatedContent>
       )}
 
-      {/* Write-review modal/inline form */}
-      {composing && (
+      {/* Write / Edit review modal/inline form */}
+      {(composing || editingReview) && (
         <AnimatedContent distance={16} duration={0.3} threshold={0}>
           <div className="mb-6 rounded-card border border-[#16a34a]/30 bg-[#16a34a]/5 p-5">
             <p className="mb-1 text-sm font-semibold text-forest-900">
-              Review for{" "}
-              <span className="text-[#16a34a]">{composing.libraryId.name}</span>
+              {editingReview ? "Edit Review for " : "Review for "}
+              <span className="text-[#16a34a]">
+                {editingReview ? editingReview.libraryId.name : composing?.libraryId.name}
+              </span>
             </p>
             <p className="mb-4 text-xs text-forest-900/50">
-              {composing.libraryId.city} · ended {fmt(composing.endDate)}
+              {editingReview
+                ? `Submitted ${fmt(editingReview.createdAt)}`
+                : `${composing?.libraryId.city} · ended ${composing ? fmt(composing.endDate) : ""}`}
             </p>
 
             <form onSubmit={(e) => void handleSubmit(e)} className="space-y-4">
@@ -241,6 +261,60 @@ export default function ReviewsPage() {
                 </span>
               </label>
 
+              {/* Photos upload input */}
+              <div>
+                <p className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-forest-900/50">
+                  Photos (Optional, max 5)
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="url"
+                    value={photoUrlInput}
+                    onChange={(e) => setPhotoUrlInput(e.target.value)}
+                    placeholder="Paste image HTTPS URL (e.g. Cloudinary, Imgur)…"
+                    className="w-full rounded-xl border border-line bg-white px-3 py-1.5 text-xs text-forest-900 outline-none focus:border-[#16a34a]"
+                  />
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      const trimmed = photoUrlInput.trim();
+                      if (!trimmed.startsWith("https://")) {
+                        alert("Photo URL must start with https://");
+                        return;
+                      }
+                      if (photos.length >= 5) {
+                        alert("Maximum 5 photos allowed.");
+                        return;
+                      }
+                      setPhotos((prev) => [...prev, trimmed]);
+                      setPhotoUrlInput("");
+                    }}
+                    disabled={photos.length >= 5 || !photoUrlInput.trim()}
+                    className="shrink-0 text-xs"
+                  >
+                    Add Photo
+                  </Button>
+                </div>
+                {photos.length > 0 && (
+                  <div className="mt-2.5 flex flex-wrap gap-2">
+                    {photos.map((p, idx) => (
+                      <div key={idx} className="relative size-14 rounded-xl overflow-hidden border border-line">
+                        <img src={p} alt="Review attachment" className="size-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-1 right-1 rounded-full bg-forest-900/80 p-0.5 text-white hover:bg-forest-900"
+                        >
+                          <X className="size-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {submitError && (
                 <p className="text-xs text-red-500">{submitError}</p>
               )}
@@ -252,13 +326,18 @@ export default function ReviewsPage() {
                   className="bg-[#16a34a] text-white hover:bg-[#15803d] disabled:opacity-60"
                   size="sm"
                 >
-                  {submitting ? "Submitting…" : "Submit Review"}
+                  {submitting ? "Submitting…" : editingReview ? "Update Review" : "Submit Review"}
                 </Button>
                 <Button
                   type="button"
                   variant="outline"
                   size="sm"
-                  onClick={() => setComposing(null)}
+                  onClick={() => {
+                    setComposing(null);
+                    setEditingReview(null);
+                    setPhotos([]);
+                    setPhotoUrlInput("");
+                  }}
                 >
                   Cancel
                 </Button>
@@ -316,6 +395,20 @@ export default function ReviewsPage() {
                   <p className="mt-2 text-sm text-forest-900/70">{r.comment}</p>
                 )}
 
+                {r.photos && r.photos.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {r.photos.map((url, pIdx) => (
+                      <a key={pIdx} href={url} target="_blank" rel="noopener noreferrer">
+                        <img
+                          src={url}
+                          alt={`Review photo ${pIdx + 1}`}
+                          className="size-14 rounded-xl border border-line object-cover transition hover:opacity-90"
+                        />
+                      </a>
+                    ))}
+                  </div>
+                )}
+
                 <div className="mt-2 flex items-center justify-between">
                   <p className="text-xs text-forest-900/30">{fmt(r.createdAt)}</p>
                   {canEdit(r.createdAt) && (
@@ -327,6 +420,8 @@ export default function ReviewsPage() {
                         setComposing(null);
                         setRating(r.rating);
                         setComment(r.comment || "");
+                        setPhotos(r.photos || []);
+                        setPhotoUrlInput("");
                         setSubmitError("");
                       }}
                       className="h-7 px-2 text-xs text-[#16a34a] hover:bg-[#16a34a]/10"

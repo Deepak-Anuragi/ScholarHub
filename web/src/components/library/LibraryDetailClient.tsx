@@ -1,9 +1,9 @@
-﻿"use client";
+"use client";
 
 import { useState } from "react";
 import Image from "next/image";
 import { useSearchParams, useRouter } from "next/navigation";
-import { Check, MapPin, Phone, Mail, MessageCircle, Star, Users, Sofa } from "lucide-react";
+import { Check, MapPin, Phone, Mail, MessageCircle, Star, Users, Sofa, ThumbsUp } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import SplitText from "@/components/SplitText";
@@ -37,6 +37,10 @@ type ReviewData = {
   rating: number;
   comment?: string;
   isVerified: boolean;
+  photos?: string[];
+  ownerReply?: string;
+  helpfulCount?: number;
+  hasVoted?: boolean;
   date?: string;
   createdAt?: string;
 };
@@ -287,6 +291,31 @@ export function LibraryDetailClient({
       setReviewPage(nextPage);
     } finally {
       setLoadingReviews(false);
+    }
+  };
+
+  const handleHelpful = async (reviewId: string) => {
+    try {
+      const res = await fetch(`/api/libraries/${library.id}/reviews/${reviewId}/helpful`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (res.status === 401) {
+        alert("Please sign in to vote on reviews.");
+        return;
+      }
+      const data = (await res.json()) as { helpfulCount: number; hasVoted: boolean };
+      if (res.ok) {
+        setReviews((prev) =>
+          prev.map((r) =>
+            r.id === reviewId
+              ? { ...r, helpfulCount: data.helpfulCount, hasVoted: data.hasVoted }
+              : r
+          )
+        );
+      }
+    } catch {
+      // ignore network errors
     }
   };
 
@@ -762,12 +791,48 @@ export function LibraryDetailClient({
                       {review.comment}
                     </p>
                   )}
-                  {review.isVerified && (
-                    <span className="mt-3 inline-flex items-center gap-1 rounded-full bg-[#16a34a]/10 px-2.5 py-0.5 text-xs font-semibold text-[#16a34a]">
-                      <Check className="size-3" aria-hidden />
-                      Verified Student
-                    </span>
+                  {review.photos && review.photos.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      {review.photos.map((url, pIdx) => (
+                        <a key={pIdx} href={url} target="_blank" rel="noopener noreferrer">
+                          <img
+                            src={url}
+                            alt={`Review photo ${pIdx + 1}`}
+                            className="size-16 rounded-xl border border-line object-cover transition hover:opacity-90"
+                          />
+                        </a>
+                      ))}
+                    </div>
                   )}
+                  {review.ownerReply && (
+                    <div className="mt-3 rounded-xl bg-sage-100/60 p-3 text-xs">
+                      <p className="font-semibold text-forest-900">Owner Response</p>
+                      <p className="mt-0.5 text-forest-900/70">{review.ownerReply}</p>
+                    </div>
+                  )}
+                  <div className="mt-4 flex items-center justify-between border-t border-line/60 pt-3">
+                    {review.isVerified ? (
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#16a34a]/10 px-2.5 py-0.5 text-xs font-semibold text-[#16a34a]">
+                        <Check className="size-3" aria-hidden />
+                        Verified Student
+                      </span>
+                    ) : (
+                      <span />
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => void handleHelpful(review.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold transition",
+                        review.hasVoted
+                          ? "bg-[#16a34a]/15 text-[#16a34a]"
+                          : "text-forest-900/60 hover:bg-sage-100 hover:text-forest-900"
+                      )}
+                    >
+                      <ThumbsUp className={cn("size-3.5", review.hasVoted && "fill-[#16a34a]")} />
+                      <span>Helpful ({review.helpfulCount ?? 0})</span>
+                    </button>
+                  </div>
                 </div>
               </AnimatedContent>
             );

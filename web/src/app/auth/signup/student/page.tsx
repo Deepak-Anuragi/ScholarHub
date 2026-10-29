@@ -66,14 +66,15 @@ export default function StudentSignupPage() {
         headers:     { "Content-Type": "application/json" },
         credentials: "include",
         body: JSON.stringify({
-          name:       data.name,
-          email:      data.email,
-          phone:      data.phone,
-          password:   data.password,
-          city:       data.city,
-          state:      data.state,
-          examType:   data.examType,
-          targetYear: data.targetYear,
+          name:         data.name,
+          email:        data.email,
+          phone:        data.phone,
+          password:     data.password,
+          city:         data.city,
+          state:        data.state,
+          examType:     data.examType,
+          targetYear:   data.targetYear,
+          referralCode: data.referralCode || undefined,
         }),
       });
 
@@ -213,6 +214,20 @@ export default function StudentSignupPage() {
             />
           </Field>
         </div>
+
+        {/* Referral code */}
+        <Field
+          label="Referral code (optional)"
+          hint="Have a friend's invite code? Get ₹50 credits on your first booking"
+          error={errors.referralCode?.message}
+        >
+          <input
+            {...register("referralCode")}
+            type="text"
+            placeholder="e.g. 66D38B21"
+            className={inputCx(!!errors.referralCode)}
+          />
+        </Field>
 
         {/* Password */}
         <Field label="Password" error={errors.password?.message}>

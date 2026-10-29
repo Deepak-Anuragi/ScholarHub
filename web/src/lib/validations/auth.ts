@@ -136,6 +136,7 @@ export const studentSignupSchema = z
     state:           stateSchema,
     examType:        examTypeSchema,
     targetYear:      targetYearSchema,
+    referralCode:    z.string().trim().toUpperCase().optional(),
   })
   .refine((d) => d.password === d.confirmPassword, {
     message: "Passwords do not match",
