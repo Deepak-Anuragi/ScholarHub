@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CreditCard, TrendingUp, Download, FileText } from "lucide-react";
+import { CreditCard, TrendingUp, Download, FileText, Loader2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { api } from "@/lib/api";
 import { downloadCSV } from "@/lib/csv";
 import { cn } from "@/lib/utils";
+import { downloadReceipt, formatPaymentId, type ReceiptData } from "@/components/booking/ReceiptPDF";
 
 type Payment = {
   _id: string;
@@ -41,6 +42,7 @@ export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [yearlyTotal, setYearlyTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     api
@@ -60,30 +62,40 @@ export default function PaymentsPage() {
     .filter((p) => p.paymentStatus === "SUCCESS")
     .reduce((sum, p) => sum + (p.amountPaid || 0), 0);
 
-  const downloadReceipt = (p: Payment) => {
-    const id = p._id.slice(-8).toUpperCase();
-    const lines = [
-      "Scholar's Hub -- Payment Receipt",
-      "",
-      "Receipt ID   : #" + id,
-      "Date         : " + fmt(p.createdAt),
-      "Payment Ref  : " + (p.paymentId ?? p.razorpayPaymentId ?? "N/A"),
-      "",
-      "Library      : " + (p.libraryId?.name ?? "N/A"),
-      "City         : " + (p.libraryId?.city ?? "N/A"),
-      "Plan         : " + p.plan.charAt(0).toUpperCase() + p.plan.slice(1).toLowerCase(),
-      "Amount Paid  : Rs." + p.amountPaid.toLocaleString("en-IN"),
-      "Status       : " + p.paymentStatus,
-      "",
-      "Thank you for choosing Scholar's Hub!",
-    ].join("\n");
-    const blob = new Blob([lines], { type: "text/plain;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "receipt-" + p._id.slice(-6) + ".txt";
-    a.click();
-    URL.revokeObjectURL(url);
+  const handleDownloadReceipt = async (p: Payment) => {
+    setDownloadingId(p._id);
+    try {
+      let receiptData: ReceiptData;
+      try {
+        receiptData = await api.get<ReceiptData>(`/student/bookings/${p._id}/receipt`);
+      } catch {
+        // Fallback receipt reconstruction if receipt endpoint fails
+        receiptData = {
+          receiptNumber: "SH-" + p._id.slice(-8).toUpperCase(),
+          studentName: "Student",
+          studentEmail: "",
+          libraryName: p.libraryId?.name ?? "Library",
+          libraryAddress: p.libraryId?.city ?? "India",
+          libraryImage: (p as unknown as { libraryId?: { photos?: Array<{ url: string; isCover?: boolean }> } }).libraryId?.photos?.find((x) => x.isCover)?.url || null,
+          plan: p.plan,
+          startDate: p.createdAt,
+          endDate: p.createdAt,
+          libraryFee: p.amountPaid,
+          platformFee: 0,
+          amountPaid: p.amountPaid,
+          paymentId: formatPaymentId(p.paymentId || p.razorpayPaymentId),
+        };
+      }
+
+      // Ensure payment ID never displays raw mock format
+      receiptData.paymentId = formatPaymentId(receiptData.paymentId || p.paymentId || p.razorpayPaymentId);
+      await downloadReceipt(receiptData, p._id);
+    } catch (err) {
+      console.error("[downloadReceipt error]", err);
+      alert("Failed to generate PDF receipt. Please try again.");
+    } finally {
+      setDownloadingId(null);
+    }
   };
 
   return (
@@ -110,7 +122,7 @@ export default function PaymentsPage() {
                   Plan: p.plan,
                   "Amount (₹)": p.amountPaid,
                   Status: p.paymentStatus,
-                  "Payment ID": p.paymentId ?? p.razorpayPaymentId ?? "—",
+                  "Payment ID": formatPaymentId(p.paymentId || p.razorpayPaymentId),
                 })),
                 "scholars-hub-payments.csv"
               )
@@ -198,8 +210,8 @@ export default function PaymentsPage() {
                       <td className="px-4 py-3 font-semibold text-forest-900">
                         ₹{p.amountPaid.toLocaleString("en-IN")}
                       </td>
-                      <td className="px-4 py-3 font-mono text-xs text-forest-900/60">
-                        {p.paymentId || p.razorpayPaymentId || `#${p._id.slice(-6)}`}
+                      <td className="px-4 py-3 font-mono text-xs text-forest-900/70">
+                        {formatPaymentId(p.paymentId || p.razorpayPaymentId)}
                       </td>
                       <td className="px-4 py-3">
                         <span
@@ -216,11 +228,21 @@ export default function PaymentsPage() {
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => void downloadReceipt(p)}
+                          disabled={downloadingId === p._id}
+                          onClick={() => void handleDownloadReceipt(p)}
                           className="h-8 px-2 text-xs text-[#16a34a] hover:bg-[#16a34a]/10"
                         >
-                          <FileText className="mr-1 size-3.5" />
-                          Receipt
+                          {downloadingId === p._id ? (
+                            <>
+                              <Loader2 className="mr-1 size-3.5 animate-spin" />
+                              Generating PDF...
+                            </>
+                          ) : (
+                            <>
+                              <FileText className="mr-1 size-3.5" />
+                              PDF Receipt
+                            </>
+                          )}
                         </Button>
                       </td>
                     </tr>

@@ -217,11 +217,11 @@ router.get("/bookings/:id/receipt", async (req: Request, res: Response): Promise
     await connectDB();
 
     const rawBooking = await BookingModel.findById(req.params.id)
-      .populate("libraryId", "name address city")
+      .populate("libraryId", "name address city photos")
       .populate("studentId", "name email")
       .lean() as unknown as (Record<string, unknown> & {
         studentId: { _id: mongoose.Types.ObjectId; name: string; email: string };
-        libraryId: { name: string; address?: string; city: string };
+        libraryId: { name: string; address?: string; city: string; photos?: Array<{ url: string; isCover?: boolean }> };
         plan: string; startDate: Date; endDate: Date;
         libraryFee?: number; platformFee?: number; amountPaid: number; paymentId?: string;
       }) | null;
@@ -242,6 +242,8 @@ router.get("/bookings/:id/receipt", async (req: Request, res: Response): Promise
     const lib = booking.libraryId;
     const addressParts = [lib.address, lib.city].filter(Boolean);
     const receiptNumber = "SH-" + req.params.id.toString().slice(-8).toUpperCase();
+    const libraryPhotos = lib.photos;
+    const libraryImage = libraryPhotos?.find((p) => p.isCover)?.url || libraryPhotos?.[0]?.url || null;
 
     res.json({
       receiptNumber,
@@ -249,6 +251,7 @@ router.get("/bookings/:id/receipt", async (req: Request, res: Response): Promise
       studentEmail:   populatedStudent.email,
       libraryName:    lib.name,
       libraryAddress: addressParts.join(", "),
+      libraryImage,
       plan:           booking.plan,
       startDate:      booking.startDate,
       endDate:        booking.endDate,
@@ -408,7 +411,7 @@ router.get("/payments", async (req: Request, res: Response): Promise<void> => {
     const startOfYear = new Date(new Date().getFullYear(), 0, 1);
 
     const [payments, yearlyAgg] = await Promise.all([
-      BookingModel.find({ studentId: id }).populate("libraryId", "name city").sort({ createdAt: -1 }).lean(),
+      BookingModel.find({ studentId: id }).populate("libraryId", "name city photos").sort({ createdAt: -1 }).lean(),
       BookingModel.aggregate([{ $match: { studentId: id, paymentStatus: "SUCCESS", createdAt: { $gte: startOfYear } } }, { $group: { _id: null, total: { $sum: "$amountPaid" } } }]),
     ]);
 

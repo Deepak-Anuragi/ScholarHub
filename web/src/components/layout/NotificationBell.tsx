@@ -85,12 +85,22 @@ export function NotificationBell() {
     if (!isAuthenticated) return;
 
     const initialFetch = window.setTimeout(() => void fetchCount(), 0);
-    const interval = setInterval(() => void fetchCount(), 30_000);
+    const interval = setInterval(() => void fetchCount(), 15_000);
+
+    const handleSync = () => {
+      void fetchCount();
+      if (open) void fetchNotifications();
+    };
+    window.addEventListener("scholars:booking-confirmed", handleSync);
+    window.addEventListener("focus", handleSync);
+
     return () => {
       window.clearTimeout(initialFetch);
       clearInterval(interval);
+      window.removeEventListener("scholars:booking-confirmed", handleSync);
+      window.removeEventListener("focus", handleSync);
     };
-  }, [fetchCount, isAuthenticated]);
+  }, [fetchCount, fetchNotifications, isAuthenticated, open]);
 
   useEffect(() => {
     if (!isAuthenticated) return;

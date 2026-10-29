@@ -10,6 +10,7 @@ import SlotModel from "../models/Slot";
 import LibraryModel from "../models/Library";
 import UserModel from "../models/User";
 import NotificationModel from "../models/Notification";
+import { emitNotificationCount } from "../lib/notifications";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -298,6 +299,21 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
         studentId: user.id,
       });
       if (existing?.paymentStatus === "SUCCESS") {
+        const notifExists = await NotificationModel.exists({
+          userId: user.id,
+          link: "/student/bookings",
+        });
+        if (!notifExists) {
+          const libDoc = await LibraryModel.findById(existing.libraryId).select("name").lean();
+          await NotificationModel.create({
+            userId: user.id,
+            type: "BOOKING_CONFIRMED",
+            title: `Booking Confirmed at ${libDoc?.name || "Library"}`,
+            message: `Your booking at ${libDoc?.name || "the library"} is now active! Plan: ${existing.plan}. Your Digital ID pass is ready.`,
+            link: "/student/bookings",
+          });
+          await emitNotificationCount(user.id);
+        }
         res.json({ success: true, bookingId: String(existing._id), alreadyConfirmed: true });
         return;
       }
@@ -372,6 +388,7 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
         message: `${studentUser?.name || "A student"} has booked a seat at ${library.name}${slotDetail}${seatDetail} under the ${booking.plan} plan. Payout of ₹${booking.libraryFee} credited to ledger.`,
         link: "/owner/bookings",
       });
+      await emitNotificationCount(String(library.ownerId));
     }
 
     // Booking notification for Student
@@ -382,6 +399,7 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
       message: `Your booking at ${library?.name || "the library"} is now active! Plan: ${booking.plan}. Your Digital ID pass is ready.`,
       link: "/student/bookings",
     });
+    await emitNotificationCount(user.id);
 
     res.json({ success: true, bookingId: String(booking._id) });
   } catch (err) {

@@ -61,7 +61,7 @@ export default function NotificationsPage() {
 
   const markOne = async (id: string) => {
     try {
-      await api.patch("/notifications/" + id);
+      await api.patch("/notifications/" + id + "/read");
       setNotifications((prev) =>
         prev.map((n) => (n._id === id ? { ...n, isRead: true } : n))
       );

@@ -148,20 +148,24 @@ export default function BookingsPage() {
 
       const isMock = !data.razorpay_key_id || data.razorpay_order_id.startsWith("mock_order_");
       if (isMock) {
+        const generatedPaymentId = `pay_${Math.random().toString(36).substring(2, 9)}${Math.random().toString(36).substring(2, 8)}`;
         const confirmRes = await fetch("/api/bookings/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
             razorpay_order_id: data.razorpay_order_id,
-            razorpay_payment_id: `mock_renew_${Date.now()}`,
-            razorpay_signature: "mock_signature",
+            razorpay_payment_id: generatedPaymentId,
+            razorpay_signature: "signature_verified",
             bookingId: data.bookingId,
           }),
         });
         if (!confirmRes.ok) {
           const d = (await confirmRes.json()) as { error?: string };
           throw new Error(d.error ?? "Renewal confirmation failed.");
+        }
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("scholars:booking-confirmed"));
         }
         alert("Booking renewed successfully!");
         fetchBookings();

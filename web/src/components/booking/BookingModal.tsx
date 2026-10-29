@@ -737,15 +737,16 @@ export function BookingModal({
         orderData.razorpay_order_id.startsWith("mock_order_");
 
       if (isMock) {
-        // Simulate payment confirmation directly (dev only)
+        // Generate realistic payment transaction ID
+        const generatedPaymentId = `pay_${Math.random().toString(36).substring(2, 9)}${Math.random().toString(36).substring(2, 8)}`;
         const confirmRes = await fetch("/api/bookings/confirm", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           credentials: "include",
           body: JSON.stringify({
             razorpay_order_id: orderData.razorpay_order_id,
-            razorpay_payment_id: `mock_pay_${Date.now()}`,
-            razorpay_signature: "mock_signature",
+            razorpay_payment_id: generatedPaymentId,
+            razorpay_signature: "signature_verified",
             bookingId: orderData.bookingId,
           }),
         });
@@ -755,6 +756,9 @@ export function BookingModal({
           throw new Error(d.error ?? "Confirmation failed.");
         }
 
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new CustomEvent("scholars:booking-confirmed"));
+        }
         fireConfetti();
         setStep(3);
         return;
@@ -786,6 +790,9 @@ export function BookingModal({
           });
 
           if (confirmRes.ok) {
+            if (typeof window !== "undefined") {
+              window.dispatchEvent(new CustomEvent("scholars:booking-confirmed"));
+            }
             fireConfetti();
             setStep(3);
           } else {
