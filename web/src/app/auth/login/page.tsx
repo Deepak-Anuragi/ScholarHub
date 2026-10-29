@@ -40,11 +40,19 @@ export default function LoginPage() {
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors },
   } = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { role: "student" },
+    defaultValues: { role: "student", email: "", password: "" },
   });
+
+  const handleRoleChange = (newRole: Role) => {
+    if (newRole === role) return;
+    setRole(newRole);
+    setServerError("");
+    reset({ role: newRole, email: "", password: "" });
+  };
 
   const onSubmit = async (data: LoginInput) => {
     setSubmitting(true);
@@ -109,7 +117,7 @@ export default function LoginPage() {
             type="button"
             role="tab"
             aria-selected={role === value}
-            onClick={() => setRole(value)}
+            onClick={() => handleRoleChange(value)}
             className={[
               "flex-1 rounded-lg py-2 text-xs font-semibold transition-colors",
               role === value
@@ -122,7 +130,7 @@ export default function LoginPage() {
         ))}
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate autoComplete="off" className="grid gap-4">
         <FormError message={serverError} />
 
         {/* Email */}
@@ -131,7 +139,7 @@ export default function LoginPage() {
           <input
             {...register("email")}
             type="email"
-            autoComplete="email"
+            autoComplete="off"
             placeholder="john@gmail.com"
             className={[
               "h-11 rounded-xl border bg-white dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46] px-3 text-sm text-forest-900",
@@ -159,7 +167,7 @@ export default function LoginPage() {
           </div>
           <PasswordInput
             {...register("password")}
-            autoComplete="current-password"
+            autoComplete="off"
             placeholder="Enter your password"
             error={errors.password?.message}
           />

@@ -110,7 +110,27 @@ export default function OwnerSignupPage() {
         </h2>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
+      {/* Role switcher tabs */}
+      <div
+        className="flex rounded-xl border border-line p-1 gap-1"
+        role="tablist"
+        aria-label="Account type"
+      >
+        <Link
+          href="/auth/signup/student"
+          className="flex-1 rounded-lg py-2 text-center text-xs font-semibold bg-sand-100/60 text-forest-900/60 hover:text-forest-900 dark:bg-[#27272a] dark:text-[#a1a1aa] dark:hover:text-white transition-colors"
+        >
+          Student
+        </Link>
+        <Link
+          href="/auth/signup/owner"
+          className="flex-1 rounded-lg py-2 text-center text-xs font-semibold bg-[#16a34a] text-white shadow-sm"
+        >
+          Library Owner
+        </Link>
+      </div>
+
+      <form onSubmit={handleSubmit(onSubmit)} noValidate autoComplete="off" className="grid gap-4">
         <FormError message={serverError} />
 
         {/* Name + Phone */}

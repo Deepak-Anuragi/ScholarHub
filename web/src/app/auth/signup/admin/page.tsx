@@ -98,7 +98,7 @@ export default function AdminSignupPage() {
         </p>
       </div>
 
-      <form onSubmit={handleSubmit(onSubmit)} noValidate className="grid gap-4">
+      <form onSubmit={handleSubmit(onSubmit)} noValidate autoComplete="off" className="grid gap-4">
         <FormError message={serverError} />
 
         {/* Name + Phone */}
