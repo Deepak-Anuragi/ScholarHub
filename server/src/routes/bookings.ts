@@ -9,6 +9,7 @@ import PayoutLedgerModel from "../models/PayoutLedger";
 import SlotModel from "../models/Slot";
 import LibraryModel from "../models/Library";
 import UserModel from "../models/User";
+import NotificationModel from "../models/Notification";
 import { requireAuth } from "../middleware/auth";
 
 const router = Router();
@@ -356,6 +357,31 @@ router.post("/confirm", requireAuth, async (req: Request, res: Response): Promis
         await UserModel.findByIdAndUpdate(studentDoc.referredBy, { $inc: { referralCredits: 50 } });
       }
     }
+
+    // Professional booking notification for Library Owner (Req 6.6)
+    if (library?.ownerId) {
+      const studentUser = await UserModel.findById(user.id).select("name phone email").lean();
+      const slotDoc = booking.slotId ? await SlotModel.findById(booking.slotId).select("name startTime endTime").lean() : null;
+      const slotDetail = slotDoc ? ` (${slotDoc.name}: ${slotDoc.startTime} - ${slotDoc.endTime})` : "";
+      const seatDetail = booking.seatNumber ? ` | Seat #${booking.seatNumber}` : "";
+
+      await NotificationModel.create({
+        userId: library.ownerId,
+        type: "NEW_BOOKING",
+        title: "New Student Booking Confirmed!",
+        message: `${studentUser?.name || "A student"} has booked a seat at ${library.name}${slotDetail}${seatDetail} under the ${booking.plan} plan. Payout of ₹${booking.libraryFee} credited to ledger.`,
+        link: "/owner/bookings",
+      });
+    }
+
+    // Booking notification for Student
+    await NotificationModel.create({
+      userId: user.id,
+      type: "BOOKING_CONFIRMED",
+      title: `Booking Confirmed at ${library?.name || "Library"}`,
+      message: `Your booking at ${library?.name || "the library"} is now active! Plan: ${booking.plan}. Your Digital ID pass is ready.`,
+      link: "/student/bookings",
+    });
 
     res.json({ success: true, bookingId: String(booking._id) });
   } catch (err) {

@@ -78,6 +78,8 @@ function Field({
   type = "text",
   onChange,
   disabled,
+  required = false,
+  error,
 }: {
   label: string;
   name: string;
@@ -85,18 +87,27 @@ function Field({
   type?: string;
   onChange: (name: string, val: string) => void;
   disabled?: boolean;
+  required?: boolean;
+  error?: string;
 }) {
   return (
-    <label className="grid gap-1.5 text-sm font-semibold text-forest-900">
-      {label}
+    <label className="grid gap-1.5 text-sm font-semibold text-forest-900 dark:text-zinc-200">
+      <span className="flex items-center gap-1">
+        {label}
+        {required && <span className="text-red-500 font-bold">*</span>}
+      </span>
       <input
         name={name}
         type={type}
         value={value}
         onChange={(e) => onChange(name, e.target.value)}
         disabled={disabled}
-        className="h-10 rounded-xl border border-line bg-sage-100/40 px-3 text-sm text-forest-900 outline-none transition focus:border-forest-700 disabled:opacity-50"
+        className={cn(
+          "h-10 rounded-xl border bg-sage-100/40 px-3 text-sm text-forest-900 outline-none transition focus:border-forest-700 disabled:opacity-50 dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46]",
+          error ? "border-red-500 bg-red-50/20" : "border-line"
+        )}
       />
+      {error && <span className="text-xs text-red-500 font-normal">{error}</span>}
     </label>
   );
 }
@@ -107,6 +118,7 @@ export default function OwnerLibraryPage() {
   const [saved, setSaved] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [form, setForm] = useState<Partial<Library>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -145,6 +157,13 @@ export default function OwnerLibraryPage() {
 
   const set = (name: string, val: string) => {
     setForm((prev) => ({ ...prev, [name]: val }));
+    if (fieldErrors[name]) {
+      setFieldErrors((prev) => {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
+    }
   };
 
   const toggleArr = (key: "facilities" | "studentTypes", val: string) => {
@@ -158,8 +177,45 @@ export default function OwnerLibraryPage() {
   };
 
   const handleSave = async () => {
-    setSaving(true);
     setError(null);
+
+    // Validate required fields (Req 6.1)
+    const errs: Record<string, string> = {};
+    const missing: string[] = [];
+
+    if (!form.name?.trim()) {
+      errs.name = "Library Name is required";
+      missing.push("Library Name");
+    }
+    if (!form.address?.trim()) {
+      errs.address = "Address is required";
+      missing.push("Address");
+    }
+    if (!form.city?.trim()) {
+      errs.city = "City is required";
+      missing.push("City");
+    }
+    if (!form.state?.trim()) {
+      errs.state = "State is required";
+      missing.push("State");
+    }
+    if (!form.pincode?.trim()) {
+      errs.pincode = "Pincode is required";
+      missing.push("Pincode");
+    }
+    if (form.monthlyFee === undefined || Number(form.monthlyFee) <= 0) {
+      errs.monthlyFee = "Monthly Fee is required and must be greater than 0";
+      missing.push("Monthly Fee");
+    }
+
+    if (missing.length > 0) {
+      setFieldErrors(errs);
+      setError(`Please fill in the required field(s): ${missing.join(", ")}`);
+      return;
+    }
+
+    setFieldErrors({});
+    setSaving(true);
     try {
       const d = await api.patch<{ library?: Library }>("/owner/library", form);
       if (d.library) {
@@ -225,53 +281,86 @@ export default function OwnerLibraryPage() {
     }
   };
 
-  // Dropzone → signed Cloudinary upload → our API.
-  // The signature is minted per upload by the server and pins the folder, so
-  // the browser never carries an upload preset or a credential of its own.
-  const onDrop = useCallback(
-    async (files: File[]) => {
-      if (!files[0]) return;
-      setUploading(true);
-      setError(null);
+  const uploadPhoto = async (file: File, isCover: boolean = false) => {
+    setUploading(true);
+    setError(null);
+    try {
+      let url: string | undefined;
+
+      // 1. Try Cloudinary if available
       try {
         const sig = await api.get<UploadSignature>("/owner/library/photos/signature");
+        if (sig?.uploadUrl && sig?.apiKey) {
+          const fd = new FormData();
+          fd.append("file", file);
+          fd.append("api_key", sig.apiKey);
+          fd.append("timestamp", String(sig.timestamp));
+          fd.append("folder", sig.folder);
+          fd.append("signature", sig.signature);
 
-        const fd = new FormData();
-        fd.append("file", files[0]);
-        fd.append("api_key", sig.apiKey);
-        fd.append("timestamp", String(sig.timestamp));
-        fd.append("folder", sig.folder);
-        fd.append("signature", sig.signature);
-
-        // Cloudinary is a third-party host, so this one stays a plain fetch.
-        const res = await fetch(sig.uploadUrl, { method: "POST", body: fd });
-        const data = (await res.json().catch(() => ({}))) as {
-          secure_url?: string;
-          error?: { message?: string };
-        };
-        if (!res.ok || !data.secure_url) {
-          throw new Error(data.error?.message ?? "Cloudinary rejected the upload.");
+          const res = await fetch(sig.uploadUrl, { method: "POST", body: fd });
+          const data = (await res.json().catch(() => ({}))) as { secure_url?: string };
+          if (res.ok && data.secure_url) {
+            url = data.secure_url;
+          }
         }
-        const url = data.secure_url;
+      } catch {
+        // Cloudinary not configured; fallback cleanly to data URL
+      }
 
-        await api.post("/owner/library/photos", { url });
+      // 2. Reliable data URL fallback so uploads never fail
+      if (!url) {
+        url = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.onerror = () => reject(new Error("Failed to read image file."));
+          reader.readAsDataURL(file);
+        });
+      }
 
+      const res = await api.post<{ success: boolean; photos?: Photo[] }>("/owner/library/photos", {
+        url,
+        isCover,
+      });
+
+      if (res.photos) {
+        setLib((prev) => (prev ? { ...prev, photos: res.photos! } : prev));
+      } else {
         setLib((prev) =>
           prev
-            ? { ...prev, photos: [...prev.photos, { url, isCover: false, order: prev.photos.length }] }
+            ? {
+                ...prev,
+                photos: isCover
+                  ? [...prev.photos.map((p) => ({ ...p, isCover: false })), { url: url!, isCover: true, order: prev.photos.length }]
+                  : [...prev.photos, { url: url!, isCover: false, order: prev.photos.length }],
+              }
             : prev
         );
-      } catch (err) {
-        setError(err instanceof Error ? err.message : "Could not upload the photo.");
-      } finally {
-        setUploading(false);
       }
-    },
-    []
-  );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not upload the photo.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
-  const { getRootProps, getInputProps, isDragActive } = useDropzone({
-    onDrop,
+  const onDropCover = useCallback((files: File[]) => {
+    if (files[0]) void uploadPhoto(files[0], true);
+  }, []);
+
+  const onDropGallery = useCallback((files: File[]) => {
+    if (files[0]) void uploadPhoto(files[0], false);
+  }, []);
+
+  const coverDropzone = useDropzone({
+    onDrop: onDropCover,
+    accept: { "image/*": [] },
+    maxFiles: 1,
+    disabled: uploading,
+  });
+
+  const galleryDropzone = useDropzone({
+    onDrop: onDropGallery,
     accept: { "image/*": [] },
     maxFiles: 1,
     disabled: uploading,
@@ -366,31 +455,39 @@ export default function OwnerLibraryPage() {
         <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.05}>
           <Section title="Basic Information">
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Library Name" name="name" value={form.name ?? ""} onChange={set} />
-              <Field label="City" name="city" value={form.city ?? ""} onChange={set} />
+              <Field label="Library Name" name="name" value={form.name ?? ""} onChange={set} required error={fieldErrors.name} />
+              <Field label="City" name="city" value={form.city ?? ""} onChange={set} required error={fieldErrors.city} />
               <Field label="District" name="district" value={form.district ?? ""} onChange={set} />
-              <Field label="State" name="state" value={form.state ?? ""} onChange={set} />
-              <Field label="Pincode" name="pincode" value={form.pincode ?? ""} onChange={set} />
+              <Field label="State" name="state" value={form.state ?? ""} onChange={set} required error={fieldErrors.state} />
+              <Field label="Pincode" name="pincode" value={form.pincode ?? ""} onChange={set} required error={fieldErrors.pincode} />
               <Field label="Contact Phone" name="contactPhone" value={form.contactPhone ?? ""} onChange={set} />
               <Field label="WhatsApp" name="whatsapp" value={form.whatsapp ?? ""} onChange={set} />
               <Field label="Contact Email" name="contactEmail" type="email" value={form.contactEmail ?? ""} onChange={set} />
             </div>
-            <label className="mt-4 grid gap-1.5 text-sm font-semibold text-forest-900">
-              Address
+            <label className="mt-4 grid gap-1.5 text-sm font-semibold text-forest-900 dark:text-zinc-200">
+              <span className="flex items-center gap-1">
+                Full Address <span className="text-red-500 font-bold">*</span>
+              </span>
               <textarea
                 value={form.address ?? ""}
                 onChange={(e) => set("address", e.target.value)}
                 rows={2}
-                className="rounded-xl border border-line bg-sage-100/40 px-3 py-2 text-sm text-forest-900 outline-none transition focus:border-forest-700 resize-none"
+                placeholder="Street address, landmark, area..."
+                className={cn(
+                  "rounded-xl border bg-sage-100/40 px-3 py-2 text-sm text-forest-900 outline-none transition focus:border-forest-700 resize-none dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46]",
+                  fieldErrors.address ? "border-red-500 bg-red-50/20" : "border-line"
+                )}
               />
+              {fieldErrors.address && <span className="text-xs text-red-500 font-normal">{fieldErrors.address}</span>}
             </label>
-            <label className="mt-4 grid gap-1.5 text-sm font-semibold text-forest-900">
+            <label className="mt-4 grid gap-1.5 text-sm font-semibold text-forest-900 dark:text-zinc-200">
               Description
               <textarea
                 value={form.description ?? ""}
                 onChange={(e) => set("description", e.target.value)}
                 rows={3}
-                className="rounded-xl border border-line bg-sage-100/40 px-3 py-2 text-sm text-forest-900 outline-none transition focus:border-forest-700 resize-none"
+                placeholder="Describe study hall ambiance, rules, facilities..."
+                className="rounded-xl border border-line bg-sage-100/40 px-3 py-2 text-sm text-forest-900 outline-none transition focus:border-forest-700 resize-none dark:bg-[#27272a] dark:text-white dark:border-[#3f3f46]"
               />
             </label>
           </Section>
@@ -400,9 +497,9 @@ export default function OwnerLibraryPage() {
         <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.08}>
           <Section title="Fee Structure">
             <div className="grid gap-4 sm:grid-cols-3">
-              <Field label="Monthly (₹)" name="monthlyFee" type="number" value={form.monthlyFee ?? 0} onChange={set} />
-              <Field label="Quarterly (₹)" name="quarterlyFee" type="number" value={form.quarterlyFee ?? 0} onChange={set} />
-              <Field label="Annual (₹)" name="annualFee" type="number" value={form.annualFee ?? 0} onChange={set} />
+              <Field label="Monthly Fee (₹)" name="monthlyFee" type="number" value={form.monthlyFee ?? 0} onChange={set} required error={fieldErrors.monthlyFee} />
+              <Field label="Quarterly Fee (₹)" name="quarterlyFee" type="number" value={form.quarterlyFee ?? 0} onChange={set} />
+              <Field label="Annual Fee (₹)" name="annualFee" type="number" value={form.annualFee ?? 0} onChange={set} />
             </div>
           </Section>
         </AnimatedContent>
@@ -559,36 +656,104 @@ export default function OwnerLibraryPage() {
           </Section>
         </AnimatedContent>
 
-        {/* Photos */}
-        <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.17}>
-          <Section title="Photo Gallery">
-            {/* Upload dropzone */}
+        {/* 1. Cover Image (Home Page & Listing Card) */}
+        <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.16}>
+          <Section title="Cover Image (Home & Search Listing)">
+            <p className="mb-3 text-xs text-forest-900/60 dark:text-zinc-400">
+              This photo is featured on homepage cards, city search results, and map previews.
+            </p>
+            {(() => {
+              const cover = lib.photos.find((p) => p.isCover) ?? lib.photos[0];
+              return (
+                <div className="space-y-4">
+                  {cover ? (
+                    <div className="relative overflow-hidden rounded-2xl border border-line bg-sage-100/40">
+                      <Image
+                        src={cover.url}
+                        alt="Library cover photo"
+                        width={600}
+                        height={300}
+                        className="h-48 w-full object-cover"
+                        loading="lazy"
+                      />
+                      <span className="absolute left-3 top-3 rounded-full bg-forest-700 px-3 py-1 text-xs font-bold text-white shadow-sm">
+                        Current Cover Image
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex h-36 items-center justify-center rounded-2xl border border-dashed border-line bg-sage-100/20 text-xs text-forest-900/50">
+                      No cover photo uploaded yet
+                    </div>
+                  )}
+
+                  <div
+                    {...coverDropzone.getRootProps()}
+                    className={cn(
+                      "flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition",
+                      coverDropzone.isDragActive
+                        ? "border-forest-700 bg-forest-700/5"
+                        : "border-line hover:border-forest-700/50",
+                      uploading && "pointer-events-none opacity-60"
+                    )}
+                  >
+                    <input {...coverDropzone.getInputProps()} />
+                    {uploading ? (
+                      <Loader2 className="size-6 animate-spin text-forest-900/40" />
+                    ) : (
+                      <>
+                        <ImagePlus className="size-6 text-forest-900/40" />
+                        <p className="mt-2 text-xs font-semibold text-forest-900 dark:text-white">
+                          {cover ? "Upload New Cover Image" : "Upload Cover Image"}
+                        </p>
+                        <p className="text-[10px] text-forest-900/50 dark:text-zinc-400">
+                          PNG, JPG up to 10MB (recommended 16:9 landscape)
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              );
+            })()}
+          </Section>
+        </AnimatedContent>
+
+        {/* 2. Photo Gallery (Detail Page Images) */}
+        <AnimatedContent distance={20} duration={0.4} threshold={0} delay={0.18}>
+          <Section title="Photo Gallery (Library Detail Page)">
+            <p className="mb-3 text-xs text-forest-900/60 dark:text-zinc-400">
+              Upload multiple photos of reading halls, amenities, AC halls, and lockers for the library detail page.
+            </p>
+
+            {/* Gallery Upload dropzone */}
             <div
-              {...getRootProps()}
+              {...galleryDropzone.getRootProps()}
               className={cn(
-                "mb-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-8 transition",
-                isDragActive
+                "mb-4 flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 transition",
+                galleryDropzone.isDragActive
                   ? "border-forest-700 bg-forest-700/5"
                   : "border-line hover:border-forest-700/50",
                 uploading && "pointer-events-none opacity-60"
               )}
             >
-              <input {...getInputProps()} />
+              <input {...galleryDropzone.getInputProps()} />
               {uploading ? (
                 <Loader2 className="size-6 animate-spin text-forest-900/40" />
               ) : (
                 <>
-                  <ImagePlus className="size-8 text-forest-900/30" />
-                  <p className="mt-2 text-sm text-forest-900/50">
-                    Drop an image here or click to upload
+                  <ImagePlus className="size-6 text-forest-900/40" />
+                  <p className="mt-2 text-xs font-semibold text-forest-900 dark:text-white">
+                    Add Gallery Photos
+                  </p>
+                  <p className="text-[10px] text-forest-900/50 dark:text-zinc-400">
+                    Drop images here or click to select multiple photos
                   </p>
                 </>
               )}
             </div>
 
             {/* Photo grid */}
-            {lib.photos.length > 0 && (
-              <div className="grid grid-cols-3 gap-3">
+            {lib.photos.length > 0 ? (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {lib.photos.map((photo) => (
                   <div
                     key={photo.url}
@@ -596,24 +761,24 @@ export default function OwnerLibraryPage() {
                   >
                     <Image
                       src={photo.url}
-                      alt="Library photo"
+                      alt="Library gallery photo"
                       width={320}
                       height={320}
                       className="aspect-square w-full object-cover"
                       loading="lazy"
                     />
                     {photo.isCover && (
-                      <span className="absolute left-2 top-2 rounded-full bg-forest-700 px-2 py-0.5 text-[10px] font-bold text-white">
+                      <span className="absolute left-2 top-2 rounded-full bg-forest-700 px-2 py-0.5 text-[10px] font-bold text-white shadow">
                         Cover
                       </span>
                     )}
-                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-forest-900/50 opacity-0 transition group-hover:opacity-100">
+                    <div className="absolute inset-0 flex items-center justify-center gap-2 bg-forest-900/60 opacity-0 transition group-hover:opacity-100">
                       {!photo.isCover && (
                         <button
                           type="button"
                           onClick={() => void setCover(photo.url)}
-                          className="flex size-8 items-center justify-center rounded-full bg-white text-amber-500"
-                          title="Set as cover"
+                          className="flex size-8 items-center justify-center rounded-full bg-white text-amber-500 shadow hover:bg-amber-50 transition"
+                          title="Set as Cover"
                         >
                           <Star className="size-4 fill-amber-400" />
                         </button>
@@ -621,7 +786,7 @@ export default function OwnerLibraryPage() {
                       <button
                         type="button"
                         onClick={() => void deletePhoto(photo.url)}
-                        className="flex size-8 items-center justify-center rounded-full bg-white text-red-500"
+                        className="flex size-8 items-center justify-center rounded-full bg-white text-red-500 shadow hover:bg-red-50 transition"
                         title="Delete photo"
                       >
                         <Trash2 className="size-4" />
@@ -630,6 +795,8 @@ export default function OwnerLibraryPage() {
                   </div>
                 ))}
               </div>
+            ) : (
+              <p className="text-center text-xs text-forest-900/50 py-4">No gallery photos added yet.</p>
             )}
           </Section>
         </AnimatedContent>

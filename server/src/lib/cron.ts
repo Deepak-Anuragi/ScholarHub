@@ -3,6 +3,7 @@ import cron, { type ScheduledTask } from "node-cron";
 import BookingModel from "../models/Booking";
 import LibraryModel from "../models/Library";
 import SlotModel from "../models/Slot";
+import NotificationModel from "../models/Notification";
 import connectDB from "./mongodb";
 import { notifyWaitlist, releaseExpiredHolds } from "./waitlist";
 
@@ -94,13 +95,61 @@ export async function expireFinishedBookings(now: Date = new Date()): Promise<Ex
   return report;
 }
 
+/**
+ * Walks active bookings that will expire within the next 10 days.
+ * Sends a professional renewal notification with a 1-click renewal link to the student.
+ */
+export async function sendRenewalReminders(now: Date = new Date()): Promise<number> {
+  const tenDaysFromNow = new Date(now.getTime() + 10 * 24 * 60 * 60 * 1000);
+
+  const expiringBookings = await BookingModel.find({
+    status: "ACTIVE",
+    paymentStatus: "SUCCESS",
+    endDate: { $gte: now, $lte: tenDaysFromNow },
+  }).populate("libraryId", "name");
+
+  let remindersSent = 0;
+
+  for (const b of expiringBookings) {
+    const recentAlert = await NotificationModel.findOne({
+      userId: b.studentId,
+      type: "BOOKING_RENEWAL_REMINDER",
+      link: "/student/bookings",
+      createdAt: { $gte: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000) },
+    });
+
+    if (!recentAlert) {
+      const libName = (b.libraryId as unknown as { name?: string })?.name ?? "your library";
+      const daysLeft = Math.max(1, Math.ceil((new Date(b.endDate).getTime() - now.getTime()) / (1000 * 60 * 60 * 24)));
+      const expiryFmt = new Date(b.endDate).toLocaleDateString("en-IN", {
+        day: "numeric",
+        month: "short",
+        year: "numeric",
+      });
+
+      await NotificationModel.create({
+        userId: b.studentId,
+        type: "BOOKING_RENEWAL_REMINDER",
+        title: `Seat Renewal Notice: ${daysLeft} Day${daysLeft === 1 ? "" : "s"} Remaining`,
+        message: `Your booking at ${libName} expires on ${expiryFmt}. Reserve your seat now with 1-click renewal to continue studying without interruption.`,
+        link: "/student/bookings",
+      });
+      remindersSent++;
+    }
+  }
+
+  return remindersSent;
+}
+
 async function runExpiry(): Promise<void> {
   try {
     await connectDB();
     const report = await expireFinishedBookings();
+    const remindersSent = await sendRenewalReminders();
     console.log(
       `[cron] expired ${report.expired} booking(s), returned ${report.seatsReturned} seat(s), ` +
-        `alerted ${report.waitlistNotified} waiting student(s), released ${report.holdsReleased} lapsed hold(s).`
+        `alerted ${report.waitlistNotified} waiting student(s), released ${report.holdsReleased} lapsed hold(s), ` +
+        `sent ${remindersSent} 10-day renewal reminder(s).`
     );
   } catch (err) {
     // A failed run must not take the process down; the next one retries.

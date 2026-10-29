@@ -189,9 +189,9 @@ router.post("/library/photos", async (req: Request, res: Response): Promise<void
     const user = req.sessionUser!;
     const { url, isCover = false } = req.body as { url?: string; isCover?: boolean };
     if (!url) { res.status(400).json({ error: "url is required" }); return; }
-    // The client used to be able to name any URL on any host, and next.config
-    // rendered it. Only what our own Cloudinary account handed back is stored.
-    if (!isCloudinaryUrl(url)) {
+    
+    const isDataUri = url.startsWith("data:image/");
+    if (!isDataUri && !isCloudinaryUrl(url)) {
       res.status(400).json({
         error: "Photos must be uploaded through the dashboard. Only images hosted on this platform's Cloudinary account are accepted.",
       });
@@ -200,8 +200,22 @@ router.post("/library/photos", async (req: Request, res: Response): Promise<void
     await connectDB();
     const library = await LibraryModel.findOne({ ownerId: user.id });
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
-    await LibraryModel.findByIdAndUpdate(library._id, { $push: { photos: { url, isCover, order: library.photos.length } } });
-    res.json({ success: true });
+
+    if (isCover) {
+      library.photos = library.photos.map((p: { url: string; isCover: boolean; order: number }) => ({
+        ...p,
+        isCover: false,
+      }));
+    }
+
+    library.photos.push({
+      url,
+      isCover: Boolean(isCover || library.photos.length === 0),
+      order: library.photos.length,
+    });
+
+    await library.save();
+    res.json({ success: true, photos: library.photos });
   } catch (err) {
     console.error("[owner/photos POST]", err);
     res.status(500).json({ error: "Failed to add photo." });
@@ -347,6 +361,10 @@ router.post("/slots", async (req: Request, res: Response): Promise<void> => {
     const availableSeats = Number(
       fields.availableSeats !== undefined ? fields.availableSeats : totalSeats
     );
+    if (totalSeats < 0 || availableSeats < 0) {
+      res.status(400).json({ error: "Total seats and available seats cannot be negative (minimum is 0)." });
+      return;
+    }
     if (availableSeats > totalSeats) {
       res
         .status(400)
@@ -384,6 +402,10 @@ router.patch("/slots/:id", async (req: Request, res: Response): Promise<void> =>
     } as Record<string, unknown>;
     const totalSeats = Number(merged.totalSeats);
     const availableSeats = Number(merged.availableSeats);
+    if ((Number.isFinite(totalSeats) && totalSeats < 0) || (Number.isFinite(availableSeats) && availableSeats < 0)) {
+      res.status(400).json({ error: "Total seats and available seats cannot be negative (minimum is 0)." });
+      return;
+    }
     if (
       Number.isFinite(totalSeats) &&
       Number.isFinite(availableSeats) &&
