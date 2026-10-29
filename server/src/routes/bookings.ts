@@ -13,6 +13,53 @@ import { requireAuth } from "../middleware/auth";
 
 const router = Router();
 
+// ── POST /api/bookings/validate-coupon ────────────────────────────────────
+router.post("/validate-coupon", requireAuth, async (req: Request, res: Response): Promise<void> => {
+  try {
+    const { code, amount } = req.body as { code?: string; amount?: number };
+    if (!code || typeof code !== "string" || !code.trim()) {
+      res.status(400).json({ error: "Coupon code is required." });
+      return;
+    }
+
+    await connectDB();
+    const CouponModel = (await import("../models/Coupon")).default;
+    const now = new Date();
+    const coupon = await CouponModel.findOne({
+      code: code.trim().toUpperCase(),
+      isActive: true,
+      expiresAt: { $gt: now },
+    });
+
+    if (!coupon) {
+      res.status(404).json({ error: "Invalid or expired coupon code." });
+      return;
+    }
+
+    if (coupon.usedCount >= coupon.maxUses) {
+      res.status(400).json({ error: "Coupon usage limit has been reached." });
+      return;
+    }
+
+    const baseAmount = typeof amount === "number" && amount > 0 ? amount : 0;
+    const discount =
+      coupon.discountType === "percent"
+        ? Math.floor((baseAmount * coupon.discountValue) / 100)
+        : Math.min(baseAmount, coupon.discountValue);
+
+    res.json({
+      valid: true,
+      code: coupon.code,
+      discountType: coupon.discountType,
+      discountValue: coupon.discountValue,
+      discount,
+    });
+  } catch (err) {
+    console.error("[validate-coupon]", err);
+    res.status(500).json({ error: "Failed to validate coupon." });
+  }
+});
+
 // ── POST /api/bookings/create-order ───────────────────────────────────────
 router.post("/create-order", requireAuth, async (req: Request, res: Response): Promise<void> => {
   try {

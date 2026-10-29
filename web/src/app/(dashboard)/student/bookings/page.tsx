@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { BookMarked, Clock, Download } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { BookMarked, Clock, Download, RotateCw, XCircle } from "lucide-react";
 import { downloadReceipt, type ReceiptData } from "@/components/booking/ReceiptPDF";
+import { CancellationModal } from "@/components/booking/CancellationModal";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DigitalIDCard } from "@/components/dashboard/DigitalIDCard";
@@ -57,9 +58,12 @@ export default function BookingsPage() {
   const [past, setPast] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(true);
   const [idModal, setIdModal] = useState<Booking | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [renewing, setRenewing] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchBookings = useCallback(() => {
+    setLoading(true);
     api
       .get<{ active?: Booking[]; past?: Booking[] }>("/student/bookings")
       .then((d) => {
@@ -73,6 +77,10 @@ export default function BookingsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  useEffect(() => {
+    fetchBookings();
+  }, [fetchBookings]);
+
   const handleDownload = async (b: Booking) => {
     setDownloading(b._id);
     try {
@@ -82,6 +90,90 @@ export default function BookingsPage() {
       alert("Failed to download receipt. Please try again.");
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const handleRenew = async (b: Booking) => {
+    if (!confirm(`Extend/renew your ${b.plan.toLowerCase()} booking at ${b.libraryId.name}?`)) {
+      return;
+    }
+    setRenewing(b._id);
+    try {
+      const res = await fetch(`/api/student/bookings/${b._id}/renew`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ plan: b.plan }),
+      });
+      const data = (await res.json()) as {
+        error?: string;
+        bookingId: string;
+        razorpay_order_id: string;
+        razorpay_key_id?: string;
+        amount: number;
+      };
+      if (!res.ok) {
+        throw new Error(data.error ?? "Failed to create renewal order.");
+      }
+
+      const isMock = !data.razorpay_key_id || data.razorpay_order_id.startsWith("mock_order_");
+      if (isMock) {
+        const confirmRes = await fetch("/api/bookings/confirm", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_payment_id: `mock_renew_${Date.now()}`,
+            razorpay_signature: "mock_signature",
+            bookingId: data.bookingId,
+          }),
+        });
+        if (!confirmRes.ok) {
+          const d = (await confirmRes.json()) as { error?: string };
+          throw new Error(d.error ?? "Renewal confirmation failed.");
+        }
+        alert("Booking renewed successfully!");
+        fetchBookings();
+        return;
+      }
+
+      const RazorpayCheckout = (await import("@/lib/razorpay-loader")).loadRazorpay;
+      await RazorpayCheckout({
+        key: data.razorpay_key_id!,
+        amount: data.amount * 100,
+        currency: "INR",
+        order_id: data.razorpay_order_id,
+        name: "Scholar's Hub",
+        description: `Renewal — ${b.libraryId.name}`,
+        handler: async (response: {
+          razorpay_order_id: string;
+          razorpay_payment_id: string;
+          razorpay_signature: string;
+        }) => {
+          const confirmRes = await fetch("/api/bookings/confirm", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              ...response,
+              bookingId: data.bookingId,
+            }),
+          });
+          if (confirmRes.ok) {
+            alert("Booking renewed successfully!");
+            fetchBookings();
+          } else {
+            const d = (await confirmRes.json()) as { error?: string };
+            alert(d.error ?? "Renewal payment confirmation failed.");
+          }
+        },
+        theme: { color: "#16a34a" },
+      });
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to renew booking.");
+    } finally {
+      setRenewing(null);
     }
   };
 
@@ -102,7 +194,7 @@ export default function BookingsPage() {
         </p>
       </div>
 
-      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-4">
+      <div className="mt-3 grid grid-cols-2 gap-2 text-xs sm:grid-cols-5">
         <div>
           <p className="text-forest-900/40">Plan</p>
           <p className="font-semibold capitalize text-forest-900">
@@ -113,6 +205,12 @@ export default function BookingsPage() {
           <div>
             <p className="text-forest-900/40">Slot</p>
             <p className="font-semibold text-forest-900">{b.slotId.name}</p>
+          </div>
+        )}
+        {b.seatNumber && (
+          <div>
+            <p className="text-forest-900/40">Seat</p>
+            <p className="font-semibold text-[#16a34a]">Seat {b.seatNumber}</p>
           </div>
         )}
         <div>
@@ -127,13 +225,43 @@ export default function BookingsPage() {
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         {b.status === "ACTIVE" && (
+          <>
+            <button
+              type="button"
+              onClick={() => setIdModal(b)}
+              className="inline-flex items-center gap-1.5 rounded-full bg-[#16a34a]/10 px-3 py-1.5 text-xs font-semibold text-[#16a34a] transition hover:bg-[#16a34a]/20"
+            >
+              <BookMarked className="size-3.5" />
+              View Digital ID
+            </button>
+            <button
+              type="button"
+              onClick={() => void handleRenew(b)}
+              disabled={renewing === b._id}
+              className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-forest-900 transition hover:border-[#16a34a] hover:text-[#16a34a] disabled:opacity-50"
+            >
+              <RotateCw className={cn("size-3.5", renewing === b._id && "animate-spin")} />
+              {renewing === b._id ? "Renewing…" : "Renew"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setCancelTarget(b)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-red-200 bg-red-50/70 px-3 py-1.5 text-xs font-semibold text-red-600 transition hover:bg-red-100"
+            >
+              <XCircle className="size-3.5" />
+              Cancel Booking
+            </button>
+          </>
+        )}
+        {b.status === "EXPIRED" && (
           <button
             type="button"
-            onClick={() => setIdModal(b)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-[#16a34a]/10 px-3 py-1.5 text-xs font-semibold text-[#16a34a] transition hover:bg-[#16a34a]/20"
+            onClick={() => void handleRenew(b)}
+            disabled={renewing === b._id}
+            className="inline-flex items-center gap-1.5 rounded-full border border-line bg-white px-3 py-1.5 text-xs font-semibold text-forest-900 transition hover:border-[#16a34a] hover:text-[#16a34a] disabled:opacity-50"
           >
-            <BookMarked className="size-3.5" />
-            View Digital ID
+            <RotateCw className={cn("size-3.5", renewing === b._id && "animate-spin")} />
+            {renewing === b._id ? "Renewing…" : "Renew"}
           </button>
         )}
         {b.paymentStatus === "SUCCESS" && (
@@ -250,6 +378,21 @@ export default function BookingsPage() {
             endDate={idModal.endDate}
           />
         </Modal>
+      )}
+      {/* Cancellation modal */}
+      {cancelTarget && (
+        <CancellationModal
+          open={Boolean(cancelTarget)}
+          onOpenChange={(next) => {
+            if (!next) setCancelTarget(null);
+          }}
+          bookingId={cancelTarget._id}
+          libraryName={cancelTarget.libraryId.name}
+          onCancelled={() => {
+            setCancelTarget(null);
+            fetchBookings();
+          }}
+        />
       )}
     </>
   );

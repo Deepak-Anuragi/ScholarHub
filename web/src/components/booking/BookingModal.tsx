@@ -6,6 +6,7 @@ import confetti from "canvas-confetti";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { CountUp } from "@/components/home/CountUp";
+import { SeatMap } from "@/components/library/SeatMap";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/components/providers/auth-provider";
 import { PLATFORM_RATE_LABEL, priceBooking } from "@/lib/pricing";
@@ -152,22 +153,28 @@ function StepIndicator({ step }: { step: 1 | 2 | 3 }) {
 // --- Step 1 -------------------------------------------------------------------
 
 function Step1({
+  libraryId,
   fees,
   slots,
   plan,
   setPlan,
   selectedSlotId,
   setSelectedSlotId,
+  selectedSeat,
+  setSelectedSeat,
   startDate,
   setStartDate,
   onNext,
 }: {
+  libraryId: string;
   fees: LibraryFees;
   slots: SlotOption[];
   plan: Plan;
   setPlan: (p: Plan) => void;
   selectedSlotId: string;
   setSelectedSlotId: (id: string) => void;
+  selectedSeat?: string;
+  setSelectedSeat: (seat?: string) => void;
   startDate: string;
   setStartDate: (d: string) => void;
   onNext: () => void;
@@ -246,7 +253,10 @@ function Step1({
                         value={slot.id}
                         disabled={full}
                         checked={active}
-                        onChange={() => setSelectedSlotId(slot.id)}
+                        onChange={() => {
+                          setSelectedSlotId(slot.id);
+                          setSelectedSeat(undefined);
+                        }}
                         className="accent-[#16a34a]"
                       />
                       <div>
@@ -277,6 +287,28 @@ function Step1({
           </div>
         )}
 
+        {/* Seat selection */}
+        <div>
+          <div className="mb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-forest-900">Choose Seat (Optional)</p>
+            {selectedSeat ? (
+              <span className="text-xs font-semibold text-[#16a34a]">
+                Seat {selectedSeat} selected
+              </span>
+            ) : (
+              <span className="text-xs text-forest-900/50">Auto-assigned if skipped</span>
+            )}
+          </div>
+          <div className="rounded-2xl border border-line bg-white p-3.5">
+            <SeatMap
+              libraryId={libraryId}
+              slotId={selectedSlotId || undefined}
+              selectedSeat={selectedSeat}
+              onSelectSeat={setSelectedSeat}
+            />
+          </div>
+        </div>
+
         {/* Start date */}
         <div>
           <p className="mb-2 text-sm font-semibold text-forest-900">Start Date</p>
@@ -300,6 +332,12 @@ function Step1({
             <div className="mt-1 flex justify-between text-forest-900/70">
               <span>Slot</span>
               <span className="font-semibold text-forest-900">{selectedSlot.name}</span>
+            </div>
+          )}
+          {selectedSeat && (
+            <div className="mt-1 flex justify-between text-forest-900/70">
+              <span>Selected Seat</span>
+              <span className="font-semibold text-[#16a34a]">Seat {selectedSeat}</span>
             </div>
           )}
           <div className="mt-1 flex justify-between text-forest-900/70">
@@ -328,6 +366,13 @@ function Step1({
 
 // --- Step 2 -------------------------------------------------------------------
 
+type AppliedCoupon = {
+  code: string;
+  discount: number;
+  discountType: "percent" | "flat";
+  discountValue: number;
+};
+
 function Step2({
   libraryName,
   fees,
@@ -335,6 +380,11 @@ function Step2({
   selectedSlotId,
   slots,
   startDate,
+  selectedSeat,
+  couponCode,
+  setCouponCode,
+  appliedCoupon,
+  setAppliedCoupon,
   onBack,
   onNext,
   isLoading,
@@ -345,11 +395,18 @@ function Step2({
   selectedSlotId: string;
   slots: SlotOption[];
   startDate: string;
+  selectedSeat?: string;
+  couponCode: string;
+  setCouponCode: (c: string) => void;
+  appliedCoupon: AppliedCoupon | null;
+  setAppliedCoupon: (c: AppliedCoupon | null) => void;
   onBack: () => void;
   onNext: () => void;
   isLoading: boolean;
 }) {
   const [agreed, setAgreed] = useState(false);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [couponError, setCouponError] = useState<string | null>(null);
   const { user } = useAuth();
 
   const fee = planFee(fees, plan);
@@ -357,6 +414,37 @@ function Step2({
   const startDt = new Date(startDate + "T00:00:00");
   const endDt = calcEndDate(startDt, plan);
   const slot = slots.find((s) => s.id === selectedSlotId);
+
+  const couponDiscount = appliedCoupon?.discount ?? 0;
+  const finalTotal = Math.max(1, total - couponDiscount);
+
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) return;
+    setValidatingCoupon(true);
+    setCouponError(null);
+    try {
+      const res = await fetch("/api/bookings/validate-coupon", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ code: couponCode.trim(), amount: total }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error ?? "Invalid coupon.");
+      }
+      setAppliedCoupon({
+        code: data.code,
+        discount: data.discount,
+        discountType: data.discountType,
+        discountValue: data.discountValue,
+      });
+    } catch (err) {
+      setCouponError(err instanceof Error ? err.message : "Failed to apply coupon.");
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
 
   return (
     <AnimatedContent distance={30} direction="horizontal" duration={0.35} threshold={0} delay={0}>
@@ -371,6 +459,7 @@ function Step2({
                   ["Library", libraryName],
                   ["Plan", `${PLAN_LABELS[plan]} (${planDurationLabel(plan)})`],
                   ...(slot ? [["Slot", `${slot.name} (${slot.startTime}–${slot.endTime})`]] : []),
+                  ["Seat", selectedSeat ? `Seat ${selectedSeat}` : "Auto-assigned"],
                   ["Start Date", fmt(startDt)],
                   ["End Date", fmt(endDt)],
                 ].map(([label, value]) => (
@@ -397,17 +486,77 @@ function Step2({
                     ₹{platformFee.toLocaleString("en-IN")}
                   </td>
                 </tr>
+                {appliedCoupon && (
+                  <tr className="border-b border-line bg-[#16a34a]/5">
+                    <td className="px-4 py-2.5 font-semibold text-[#16a34a]">
+                      Coupon ({appliedCoupon.code})
+                    </td>
+                    <td className="px-4 py-2.5 font-semibold text-[#16a34a]">
+                      -₹{appliedCoupon.discount.toLocaleString("en-IN")}
+                    </td>
+                  </tr>
+                )}
                 <tr>
                   <td className="bg-[#16a34a]/8 px-4 py-3 font-bold text-forest-900">
                     Total
                   </td>
                   <td className="bg-[#16a34a]/8 px-4 py-3 font-bold text-forest-900">
-                    ₹<CountUp end={total} duration={0.8} />
+                    ₹<CountUp end={finalTotal} duration={0.8} />
                   </td>
                 </tr>
               </tbody>
             </table>
           </div>
+        </div>
+
+        {/* Coupon code */}
+        <div className="rounded-2xl border border-line bg-white p-3.5">
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-forest-900/60">
+            Have a Promo Code?
+          </p>
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between rounded-xl bg-[#16a34a]/10 px-3 py-2 text-sm text-[#16a34a]">
+              <span className="font-semibold">
+                {appliedCoupon.code} applied (₹{appliedCoupon.discount} off)
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setAppliedCoupon(null);
+                  setCouponCode("");
+                }}
+                className="text-xs font-semibold underline hover:text-[#15803d]"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-1.5">
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  placeholder="Enter code (e.g. DISCOUNT10)"
+                  value={couponCode}
+                  onChange={(e) => {
+                    setCouponCode(e.target.value.toUpperCase());
+                    setCouponError(null);
+                  }}
+                  className="w-full rounded-xl border border-line px-3 py-2 text-sm uppercase placeholder:normal-case focus:outline-none focus:ring-2 focus:ring-[#16a34a]"
+                />
+                <Button
+                  type="button"
+                  onClick={() => void handleApplyCoupon()}
+                  disabled={!couponCode.trim() || validatingCoupon}
+                  className="shrink-0 bg-forest-900 px-4 text-xs font-semibold text-sand-100 hover:bg-forest-800"
+                >
+                  {validatingCoupon ? <Loader2 className="size-3.5 animate-spin" /> : "Apply"}
+                </Button>
+              </div>
+              {couponError && (
+                <p className="text-xs text-red-600">{couponError}</p>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Student info */}
@@ -431,7 +580,7 @@ function Step2({
             <a href="#" className="font-semibold text-[#16a34a] underline">
               cancellation policy
             </a>
-            . No refunds after 24 hours of booking.
+            . Refunds calculated per cancellation timeline policy.
           </span>
         </label>
 
@@ -517,6 +666,9 @@ export function BookingModal({
       ""
   );
   const [startDate, setStartDate] = useState(todayIso());
+  const [selectedSeat, setSelectedSeat] = useState<string | undefined>(undefined);
+  const [couponCode, setCouponCode] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<AppliedCoupon | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
@@ -562,6 +714,8 @@ export function BookingModal({
           slotId: selectedSlotId || undefined,
           plan,
           startDate,
+          seatNumber: selectedSeat || undefined,
+          couponCode: appliedCoupon?.code || undefined,
         }),
       });
 
@@ -646,7 +800,7 @@ export function BookingModal({
     } finally {
       setIsLoading(false);
     }
-  }, [libraryId, libraryName, plan, selectedSlotId, startDate, fireConfetti]);
+  }, [libraryId, libraryName, plan, selectedSlotId, startDate, selectedSeat, appliedCoupon, fireConfetti]);
 
   return (
     <div
@@ -697,12 +851,15 @@ export function BookingModal({
 
           {step === 1 && (
             <Step1
+              libraryId={libraryId}
               fees={fees}
               slots={slots}
               plan={plan}
               setPlan={setPlan}
               selectedSlotId={selectedSlotId}
               setSelectedSlotId={setSelectedSlotId}
+              selectedSeat={selectedSeat}
+              setSelectedSeat={setSelectedSeat}
               startDate={startDate}
               setStartDate={setStartDate}
               onNext={() => setStep(2)}
@@ -717,6 +874,11 @@ export function BookingModal({
               selectedSlotId={selectedSlotId}
               slots={slots}
               startDate={startDate}
+              selectedSeat={selectedSeat}
+              couponCode={couponCode}
+              setCouponCode={setCouponCode}
+              appliedCoupon={appliedCoupon}
+              setAppliedCoupon={setAppliedCoupon}
               onBack={() => setStep(1)}
               onNext={() => void handlePayment()}
               isLoading={isLoading}
