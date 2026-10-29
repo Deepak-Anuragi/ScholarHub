@@ -1,50 +1,13 @@
-﻿import Link from "next/link";
-import { ChevronDown, Star, MapPin, BookOpen, TrendingUp } from "lucide-react";
+import Link from "next/link";
+import { ChevronDown, Star, MapPin, TrendingUp } from "lucide-react";
 
 import { HeroSection } from "@/components/home/HeroSection";
 import { HowItWorksSection } from "@/components/home/HowItWorksSection";
 import { StatsSection } from "@/components/home/StatsSection";
+import { FeaturedLibrariesSection } from "@/components/home/FeaturedLibrariesSection";
+import { HomeCoursesSection } from "@/components/home/HomeCoursesSection";
 
 export default function Home() {
-  const featuredLibraries = [
-    {
-      name: "Green Arc Library",
-      city: "Bhopal",
-      rating: "4.8",
-      fee: "900",
-      seats: "12",
-      tags: ["WiFi", "AC", "CCTV"],
-      available: true,
-    },
-    {
-      name: "Pin Drop Reading Hall",
-      city: "Indore",
-      rating: "4.6",
-      fee: "750",
-      seats: "6",
-      tags: ["Locker", "Power", "Washroom"],
-      available: true,
-    },
-    {
-      name: "Focus Point Library",
-      city: "Kota",
-      rating: "4.9",
-      fee: "1100",
-      seats: "18",
-      tags: ["AC", "Parking", "CCTV"],
-      available: false,
-    },
-    {
-      name: "Sage Study Collective",
-      city: "Jaipur",
-      rating: "4.7",
-      fee: "820",
-      seats: "9",
-      tags: ["WiFi", "Drinking Water", "Generator"],
-      available: true,
-    },
-  ];
-
   const testimonials = [
     {
       name: "Ritika S.",
@@ -110,79 +73,11 @@ export default function Home() {
       {/* -- How It Works -------------------------------------------------- */}
       <HowItWorksSection />
 
-      {/* -- Featured Libraries -------------------------------------------- */}
-      <section id="featured" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm font-semibold uppercase tracking-wider text-[#16a34a]">
-              Featured libraries
-            </p>
-            <h2 className="mt-1 font-display text-3xl text-forest-900 sm:text-4xl">
-              Top-rated spaces with live seats
-            </h2>
-          </div>
-          <Link
-            href="/libraries"
-            className="inline-flex h-10 items-center gap-1.5 rounded-full border border-line bg-white/70 dark:bg-[#27272a] dark:border-[#3f3f46] dark:text-white px-5 text-sm font-semibold text-forest-900 transition hover:border-[#16a34a] hover:text-[#16a34a]"
-          >
-            View all listings →
-          </Link>
-        </div>
+      {/* -- Featured Libraries (Dynamic & Admin-Curated) ---------------- */}
+      <FeaturedLibrariesSection />
 
-        <div className="mt-8 grid gap-5 md:grid-cols-2">
-          {featuredLibraries.map((library) => (
-            <div
-              key={library.name}
-              className="group flex flex-col gap-4 rounded-card border border-line bg-white/80 p-6 shadow-soft transition-all duration-200 hover:shadow-lift hover:-translate-y-0.5"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex size-10 items-center justify-center rounded-2xl bg-[#16a34a]/10 text-[#16a34a]">
-                    <BookOpen className="size-5" />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-forest-900">{library.name}</p>
-                    <p className="flex items-center gap-1 text-xs text-forest-900/60">
-                      <MapPin className="size-3" />{library.city}
-                    </p>
-                  </div>
-                </div>
-                <span className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${library.available ? "bg-[#16a34a]/10 text-[#16a34a]" : "bg-red-50 text-red-600"}`}>
-                  {library.available ? `${library.seats} seats left` : "Full"}
-                </span>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-xs font-bold text-amber-700">
-                  <Star className="size-3 fill-amber-400 text-amber-400" />
-                  {library.rating}
-                </span>
-                <span className="text-sm text-forest-900/70">
-                  From <strong className="text-forest-900">₹{library.fee}</strong>/month
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {library.tags.map((tag) => (
-                  <span
-                    key={tag}
-                    className="rounded-full border border-line bg-sage-100/60 dark:bg-[#27272a] dark:border-[#3f3f46] dark:text-white px-3 py-0.5 text-xs font-medium text-forest-900"
-                  >
-                    {tag}
-                  </span>
-                ))}
-              </div>
-
-              <Link
-                href="/libraries"
-                className="mt-auto inline-flex h-10 items-center justify-center rounded-full bg-[#16a34a] px-5 text-sm font-semibold text-white transition hover:bg-[#15803d]"
-              >
-                View details
-              </Link>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* -- Top Rated Study Courses (Admin-Added with Auth Gate) ----------- */}
+      <HomeCoursesSection />
 
       {/* -- Insights ------------------------------------------------------ */}
       <section id="insights" className="mx-auto w-full max-w-6xl px-4 py-16 sm:px-6">

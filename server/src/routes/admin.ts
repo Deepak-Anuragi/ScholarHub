@@ -1,4 +1,4 @@
-﻿import { Router, Request, Response } from "express";
+import { Router, Request, Response } from "express";
 import mongoose from "mongoose";
 
 import connectDB from "../lib/mongodb";
@@ -87,6 +87,7 @@ router.get("/libraries", async (req: Request, res: Response): Promise<void> => {
 
     const serialized = libraries.map((lib: any) => ({
       ...lib, _id: String(lib._id),
+      isFeatured: Boolean(lib.isFeatured),
       monthlyRevenue: revenueMap.get(String(lib._id)) ?? 0,
       ownerId: lib.ownerId && typeof lib.ownerId === "object"
         ? { ...(lib.ownerId as Record<string, unknown>), _id: String((lib.ownerId as { _id: unknown })._id) }
@@ -113,6 +114,20 @@ router.patch("/libraries", async (req: Request, res: Response): Promise<void> =>
   } catch (err) {
     console.error("[admin/libraries PATCH]", err);
     res.status(500).json({ error: "Bulk update failed." });
+  }
+});
+
+router.patch("/libraries/:id/feature", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const lib = await LibraryModel.findById(req.params.id);
+    if (!lib) { res.status(404).json({ error: "Library not found." }); return; }
+    lib.isFeatured = !lib.isFeatured;
+    await lib.save();
+    res.json({ library: { ...lib.toObject(), _id: String(lib._id), isFeatured: lib.isFeatured } });
+  } catch (err) {
+    console.error("[admin/libraries feature]", err);
+    res.status(500).json({ error: "Failed to toggle featured status." });
   }
 });
 
@@ -257,6 +272,7 @@ const EDITABLE_COURSE_FIELDS = [
   "fileUrl",
   "thumbnailUrl",
   "fileSize",
+  "isTopRated",
 ] as const;
 
 /** Whitelisted rather than spread, per the rule for every write route here. */
@@ -351,6 +367,21 @@ router.patch("/courses/:id", async (req: Request, res: Response): Promise<void> 
   } catch (err) {
     console.error("[admin/courses PATCH]", err);
     res.status(500).json({ error: "Failed to update the course." });
+  }
+});
+
+router.patch("/courses/:id/top-rated", async (req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    const course = await CourseModel.findById(req.params.id);
+    if (!course) { res.status(404).json({ error: "Course not found." }); return; }
+    course.isTopRated = !course.isTopRated;
+    await course.save();
+    await course.populate("createdBy", "name");
+    res.json({ course: serializeCourse(course.toObject() as CourseDoc) });
+  } catch (err) {
+    console.error("[admin/courses top-rated]", err);
+    res.status(500).json({ error: "Failed to update top rated status." });
   }
 });
 
@@ -589,6 +620,43 @@ router.get("/analytics", async (_req: Request, res: Response): Promise<void> => 
   } catch (err) {
     console.error("[admin/analytics]", err);
     res.status(500).json({ error: "Failed to fetch analytics." });
+  }
+});
+
+// ─── ADMIN PROFILE ────────────────────────────────────────────────────────
+router.get("/profile", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const dbUser = await UserModel.findById(user.id)
+      .select("name email phone avatarUrl role createdAt")
+      .lean();
+    if (!dbUser) { res.status(404).json({ error: "Admin not found." }); return; }
+    res.json({ profile: dbUser });
+  } catch (err) {
+    console.error("[admin/profile GET]", err);
+    res.status(500).json({ error: "Failed to fetch admin profile." });
+  }
+});
+
+router.patch("/profile", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const { name, phone, avatarUrl } = req.body as { name?: string; phone?: string; avatarUrl?: string };
+    const allowed: Record<string, unknown> = {};
+    if (name?.trim()) allowed.name = name.trim();
+    if (phone?.trim()) allowed.phone = phone.trim();
+    if (avatarUrl !== undefined) allowed.avatarUrl = avatarUrl;
+
+    const updated = await UserModel.findByIdAndUpdate(user.id, { $set: allowed }, { new: true })
+      .select("name email phone avatarUrl role createdAt")
+      .lean();
+    if (!updated) { res.status(404).json({ error: "Admin not found." }); return; }
+    res.json({ profile: updated });
+  } catch (err) {
+    console.error("[admin/profile PATCH]", err);
+    res.status(500).json({ error: "Failed to update admin profile." });
   }
 });
 

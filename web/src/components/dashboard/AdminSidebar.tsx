@@ -15,6 +15,7 @@ import {
   Users,
   Building2,
   Ticket,
+  User,
 } from "lucide-react";
 
 import {
@@ -36,6 +37,7 @@ const NAV: DashboardNavLink[] = [
   { href: "/admin/coupons",        label: "Coupons",        icon: Ticket },
   { href: "/admin/notifications",  label: "Notifications",  icon: Bell, shortLabel: "Alerts" },
   { href: "/admin/chat",           label: "Chat Monitor",   icon: MessageCircle, shortLabel: "Chat" },
+  { href: "/admin/profile",        label: "Profile",        icon: User },
 ];
 
 // Notifications and the chat monitor move under "More" rather than off the

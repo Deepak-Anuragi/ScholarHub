@@ -12,8 +12,30 @@ router.get("/", async (req: Request, res: Response): Promise<void> => {
   try {
     await connectDB();
     const examType = req.query.examType as string | undefined;
-    const filter = examType && examType !== "all" ? { examTypes: examType } : {};
-    const courses = await CourseModel.find(filter).populate("createdBy", "name").sort({ enrolledCount: -1, createdAt: -1 }).lean();
+    const topRated = req.query.topRated as string | undefined;
+
+    const filter: Record<string, unknown> = {};
+    if (examType && examType !== "all") {
+      filter.examTypes = examType;
+    }
+    if (topRated === "true") {
+      filter.isTopRated = true;
+    }
+
+    let courses = await CourseModel.find(filter)
+      .populate("createdBy", "name")
+      .sort({ enrolledCount: -1, createdAt: -1 })
+      .lean();
+
+    // If topRated was requested but none explicitly marked, fall back to top enrolled
+    if (topRated === "true" && (!courses || courses.length === 0)) {
+      courses = await CourseModel.find(examType && examType !== "all" ? { examTypes: examType } : {})
+        .populate("createdBy", "name")
+        .sort({ enrolledCount: -1, createdAt: -1 })
+        .limit(6)
+        .lean();
+    }
+
     res.json({ courses });
   } catch (err) {
     console.error("[courses]", err);

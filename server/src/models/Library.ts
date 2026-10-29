@@ -43,6 +43,7 @@ export interface ILibrary extends Document {
   studentTypes: string[];
   photos: ILibraryPhoto[];
   isVerified: boolean;
+  isFeatured?: boolean;
   isActive: boolean;
   ratingAvg: number;
   reviewCount: number;
@@ -107,6 +108,7 @@ const LibrarySchema = new Schema<ILibrary>(
     studentTypes:   [{ type: String }],
     photos:         [LibraryPhotoSchema],
     isVerified:     { type: Boolean, default: false },
+    isFeatured:     { type: Boolean, default: false },
     isActive:       { type: Boolean, default: true },
     ratingAvg:      { type: Number, default: 0 },
     reviewCount:    { type: Number, default: 0 },

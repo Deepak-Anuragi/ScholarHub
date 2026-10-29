@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import { BookOpen, Loader2, Pencil, Plus, Trash2, Star } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Modal } from "@/components/ui/modal";
+import { cn } from "@/lib/utils";
 
 type Course = {
   _id: string;
@@ -17,6 +18,7 @@ type Course = {
   examTypes: string[];
   fileUrl: string;
   enrolledCount: number;
+  isTopRated?: boolean;
   createdBy?: { name: string };
   createdAt: string;
 };
@@ -117,6 +119,7 @@ export default function AdminCoursesPage() {
   const [modal, setModal] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [togglingTopRated, setTogglingTopRated] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(() => {
@@ -179,6 +182,26 @@ export default function AdminCoursesPage() {
     }
   };
 
+  const handleToggleTopRated = async (id: string) => {
+    setTogglingTopRated(id);
+    setError(null);
+    try {
+      const res = await api.patch<{ course?: { isTopRated: boolean } }>(`/admin/courses/${id}/top-rated`);
+      const nextVal = res.course?.isTopRated;
+      setCourses((prev) =>
+        prev.map((c) =>
+          c._id === id
+            ? { ...c, isTopRated: nextVal !== undefined ? nextVal : !c.isTopRated }
+            : c
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to toggle top rated status.");
+    } finally {
+      setTogglingTopRated(null);
+    }
+  };
+
   return (
     <>
       <div className="px-4 py-6 sm:px-6 lg:px-8">
@@ -212,7 +235,7 @@ export default function AdminCoursesPage() {
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="border-b border-line bg-sage-100/50 text-left text-xs font-semibold uppercase tracking-wide text-forest-900/40">
-                      {["Title","Subject","Exam Types","Enrolled","Created By","Date",""].map((h) => (
+                      {["Title","Subject","Exam Types","Enrolled","Top Rated (Home)","Created By","Date",""].map((h) => (
                         <th key={h} className="px-4 py-2.5 whitespace-nowrap">{h}</th>
                       ))}
                     </tr>
@@ -230,6 +253,27 @@ export default function AdminCoursesPage() {
                           </div>
                         </td>
                         <td className="px-4 py-3 text-forest-900/70">{c.enrolledCount}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => void handleToggleTopRated(c._id)}
+                            disabled={togglingTopRated === c._id}
+                            title={c.isTopRated ? "Remove from Top Rated on Home" : "Feature on Home Page"}
+                            className={cn(
+                              "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition",
+                              c.isTopRated
+                                ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                                : "bg-sage-100/80 text-forest-900/50 hover:bg-sage-200 hover:text-forest-900"
+                            )}
+                          >
+                            {togglingTopRated === c._id ? (
+                              <Loader2 className="size-3 animate-spin" />
+                            ) : (
+                              <Star className={cn("size-3", c.isTopRated ? "fill-amber-500 text-amber-500" : "")} />
+                            )}
+                            {c.isTopRated ? "Top Rated" : "Standard"}
+                          </button>
+                        </td>
                         <td className="px-4 py-3 text-forest-900/60">{c.createdBy?.name ?? "—"}</td>
                         <td className="px-4 py-3 text-forest-900/50 whitespace-nowrap">
                           {new Date(c.createdAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}

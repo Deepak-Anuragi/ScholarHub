@@ -10,6 +10,7 @@ export interface ICourse extends Document {
   fileSize?: number;
   createdBy: Types.ObjectId;
   enrolledCount: number;
+  isTopRated?: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -25,6 +26,7 @@ const CourseSchema = new Schema<ICourse>(
     fileSize:      { type: Number },
     createdBy:     { type: Schema.Types.ObjectId, ref: "User", required: true },
     enrolledCount: { type: Number, default: 0 },
+    isTopRated:    { type: Boolean, default: false },
   },
   { timestamps: true }
 );

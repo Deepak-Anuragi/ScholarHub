@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@tanstack/react-table";
 import {
   CheckCircle, Download, ExternalLink, Loader2, ShieldCheck,
-  ShieldOff, Trash2, ChevronsUpDown,
+  ShieldOff, Trash2, ChevronsUpDown, Star,
 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
@@ -35,6 +35,7 @@ type Library = {
   totalSeats: number;
   ratingAvg: number;
   isVerified: boolean;
+  isFeatured?: boolean;
   isActive: boolean;
   ownerId: Owner | null;
 };
@@ -171,6 +172,26 @@ export default function AdminLibrariesPage() {
     }
   };
 
+  const handleToggleFeature = async (id: string) => {
+    setActing(id + "_feature");
+    setError(null);
+    try {
+      const res = await api.patch<{ library?: { isFeatured: boolean } }>(`/admin/libraries/${id}/feature`);
+      const nextFeatured = res.library?.isFeatured;
+      setLibraries((prev) =>
+        prev.map((lib) =>
+          lib._id === id
+            ? { ...lib, isFeatured: nextFeatured !== undefined ? nextFeatured : !lib.isFeatured }
+            : lib
+        )
+      );
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to toggle featured status.");
+    } finally {
+      setActing(null);
+    }
+  };
+
   const columns = useMemo(
     () => [
       {
@@ -229,6 +250,35 @@ export default function AdminLibrariesPage() {
           ) : (
             <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-600">Suspended</span>
           ),
+      }),
+      helper.accessor("isFeatured", {
+        header: "Featured (Home)",
+        cell: ({ row }) => {
+          const lib = row.original;
+          const isFeat = Boolean(lib.isFeatured);
+          const isBusy = acting === lib._id + "_feature";
+          return (
+            <button
+              type="button"
+              onClick={() => void handleToggleFeature(lib._id)}
+              disabled={isBusy}
+              title={isFeat ? "Remove from Featured Libraries on Home" : "Feature on Home Page"}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold transition",
+                isFeat
+                  ? "bg-amber-100 text-amber-800 hover:bg-amber-200"
+                  : "bg-sage-100/80 text-forest-900/50 hover:bg-sage-200 hover:text-forest-900"
+              )}
+            >
+              {isBusy ? (
+                <Loader2 className="size-3 animate-spin" />
+              ) : (
+                <Star className={cn("size-3", isFeat ? "fill-amber-500 text-amber-500" : "")} />
+              )}
+              {isFeat ? "Featured" : "No"}
+            </button>
+          );
+        },
       }),
       {
         id: "actions",

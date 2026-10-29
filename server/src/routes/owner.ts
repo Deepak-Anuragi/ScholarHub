@@ -847,4 +847,47 @@ router.get("/students", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+// ─── OWNER PROFILE ────────────────────────────────────────────────────────
+router.get("/profile", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const [dbUser, library] = await Promise.all([
+      UserModel.findById(user.id).select("name email phone city state avatarUrl role createdAt").lean(),
+      LibraryModel.findOne({ ownerId: user.id }).select("name city address totalSeats availableSeats isVerified").lean(),
+    ]);
+
+    if (!dbUser) { res.status(404).json({ error: "Owner not found." }); return; }
+    res.json({ profile: dbUser, library: library ?? null });
+  } catch (err) {
+    console.error("[owner/profile GET]", err);
+    res.status(500).json({ error: "Failed to fetch owner profile." });
+  }
+});
+
+router.patch("/profile", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    await connectDB();
+    const { name, phone, city, state, avatarUrl } = req.body as {
+      name?: string; phone?: string; city?: string; state?: string; avatarUrl?: string;
+    };
+    const allowed: Record<string, unknown> = {};
+    if (name?.trim())  allowed.name  = name.trim();
+    if (phone?.trim()) allowed.phone = phone.trim();
+    if (city?.trim())  allowed.city  = city.trim();
+    if (state?.trim()) allowed.state = state.trim();
+    if (avatarUrl !== undefined) allowed.avatarUrl = avatarUrl;
+
+    const updated = await UserModel.findByIdAndUpdate(user.id, { $set: allowed }, { new: true })
+      .select("name email phone city state avatarUrl role createdAt")
+      .lean();
+    if (!updated) { res.status(404).json({ error: "Owner not found." }); return; }
+    res.json({ profile: updated });
+  } catch (err) {
+    console.error("[owner/profile PATCH]", err);
+    res.status(500).json({ error: "Failed to update owner profile." });
+  }
+});
+
 export default router;

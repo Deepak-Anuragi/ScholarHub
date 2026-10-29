@@ -21,6 +21,32 @@ function withLocation(body: Record<string, unknown>): Record<string, unknown> {
   return body;
 }
 
+// ── GET /api/libraries/featured ───────────────────────────────────────────
+router.get("/featured", async (_req: Request, res: Response): Promise<void> => {
+  try {
+    await connectDB();
+    // Return admin-curated featured libraries first; fallback to top-rated active libraries
+    let libraries = await LibraryModel.find({ isActive: true, isFeatured: true })
+      .select("name city district state monthlyFee totalSeats availableSeats ratingAvg reviewCount facilities photos isFeatured")
+      .sort({ ratingAvg: -1, createdAt: -1 })
+      .limit(6)
+      .lean();
+
+    if (!libraries || libraries.length === 0) {
+      libraries = await LibraryModel.find({ isActive: true })
+        .select("name city district state monthlyFee totalSeats availableSeats ratingAvg reviewCount facilities photos isFeatured")
+        .sort({ ratingAvg: -1, availableSeats: -1 })
+        .limit(6)
+        .lean();
+    }
+
+    res.json({ libraries });
+  } catch (err) {
+    console.error("[libraries/featured]", err);
+    res.status(500).json({ error: "Failed to fetch featured libraries." });
+  }
+});
+
 // ── GET /api/libraries ────────────────────────────────────────────────────
 router.get("/", async (req: Request, res: Response): Promise<void> => {
   const {

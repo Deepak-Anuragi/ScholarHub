@@ -12,6 +12,7 @@ import {
   MessageCircle,
   Star,
   TrendingUp,
+  User,
   Users,
 } from "lucide-react";
 
@@ -35,6 +36,7 @@ const NAV: DashboardNavLink[] = [
   { href: "/owner/revenue",   label: "Revenue",    icon: TrendingUp },
   { href: "/owner/reviews",   label: "Reviews",    icon: Star },
   { href: "/owner/chat",      label: "Chat",       icon: MessageCircle },
+  { href: "/owner/profile",   label: "Profile",    icon: User },
 ];
 
 // Editing the library is an owner's primary task, so it keeps a tab. The
