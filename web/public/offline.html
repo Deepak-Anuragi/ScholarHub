@@ -4,28 +4,239 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#16a34a" />
-    <title>Offline | Scholar's Hub</title>
+    <title>Offline Pass | Scholar's Hub</title>
     <style>
-      :root { color-scheme: light; font-family: Georgia, serif; background: #f0e3d7; color: #253b1c; }
-      body { display: grid; min-height: 100vh; place-items: center; margin: 0; }
-      main { width: min(90vw, 28rem); padding: 3rem 2rem; text-align: center; background: #fff; border: 1px solid #d6e2d3; border-radius: 1.5rem; box-shadow: 0 20px 50px -35px rgba(27, 45, 22, .45); }
-      .logo { display: grid; width: 4rem; height: 4rem; margin: 0 auto 1.5rem; place-items: center; border-radius: 1rem; background: #16a34a; color: #fff; }
-      h1 { margin: 0 0 .75rem; font-size: 1.6rem; }
-      p { margin: 0 0 1.5rem; color: #587052; font-family: Arial, sans-serif; }
-      button { border: 0; border-radius: 999px; padding: .75rem 1.5rem; background: #16a34a; color: #fff; font: 600 1rem Arial, sans-serif; cursor: pointer; }
+      :root {
+        color-scheme: light;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+        background: #f7f3ee;
+        color: #1f3316;
+      }
+      body {
+        display: grid;
+        min-height: 100vh;
+        place-items: center;
+        margin: 0;
+        padding: 1.5rem 1rem;
+        box-sizing: border-box;
+      }
+      main {
+        width: min(100%, 28rem);
+        background: #fff;
+        border: 1px solid #d6e2d3;
+        border-radius: 1.5rem;
+        box-shadow: 0 20px 45px -25px rgba(27, 45, 22, 0.25);
+        overflow: hidden;
+      }
+      .header {
+        background: #16a34a;
+        color: #fff;
+        padding: 1.5rem;
+        text-align: center;
+      }
+      .logo {
+        display: grid;
+        width: 3.25rem;
+        height: 3.25rem;
+        margin: 0 auto 0.75rem;
+        place-items: center;
+        border-radius: 0.85rem;
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
+      h1 {
+        margin: 0;
+        font-size: 1.4rem;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+      .badge {
+        display: inline-block;
+        margin-top: 0.5rem;
+        background: rgba(255, 255, 255, 0.25);
+        padding: 0.25rem 0.75rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+      .content {
+        padding: 1.5rem;
+      }
+      .booking-card {
+        background: #f9fbf8;
+        border: 1px solid #e2ece0;
+        border-radius: 1rem;
+        padding: 1rem;
+        margin-bottom: 1.25rem;
+      }
+      .booking-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: #1f3316;
+        margin: 0 0 0.25rem;
+      }
+      .booking-subtitle {
+        font-size: 0.8rem;
+        color: #60795a;
+        margin: 0 0 0.85rem;
+      }
+      .grid-details {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.75rem;
+        border-top: 1px dashed #d6e2d3;
+        padding-top: 0.85rem;
+        font-size: 0.8rem;
+      }
+      .label {
+        color: #7b9475;
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        font-weight: 600;
+        margin-bottom: 0.15rem;
+      }
+      .value {
+        font-weight: 700;
+        color: #1f3316;
+      }
+      .seat-tag {
+        display: inline-block;
+        background: #dcfce7;
+        color: #166534;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 0.75rem;
+      }
+      .status-pill {
+        display: inline-block;
+        background: #dcfce7;
+        color: #15803d;
+        padding: 0.2rem 0.6rem;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+      }
+      .notice {
+        font-size: 0.8rem;
+        color: #60795a;
+        text-align: center;
+        margin: 0 0 1.25rem;
+        line-height: 1.4;
+      }
+      .actions {
+        display: flex;
+        gap: 0.75rem;
+      }
+      button {
+        flex: 1;
+        border: 0;
+        border-radius: 999px;
+        padding: 0.75rem 1rem;
+        background: #16a34a;
+        color: #fff;
+        font: 600 0.9rem sans-serif;
+        cursor: pointer;
+        transition: background 0.15s;
+      }
+      button:hover {
+        background: #15803d;
+      }
+      button.secondary {
+        background: #eef3ed;
+        color: #1f3316;
+      }
+      button.secondary:hover {
+        background: #e2ece0;
+      }
     </style>
   </head>
   <body>
     <main>
-      <div class="logo" aria-hidden="true">
-        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M12 7v14" />
-          <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
-        </svg>
+      <div class="header">
+        <div class="logo" aria-hidden="true">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 7v14" />
+            <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z" />
+          </svg>
+        </div>
+        <h1>Scholar's Hub</h1>
+        <span class="badge">Offline Mode</span>
       </div>
-      <h1>You're offline</h1>
-      <p>Please check your connection.</p>
-      <button type="button" onclick="location.reload()">Retry</button>
+
+      <div class="content">
+        <div id="booking-container">
+          <!-- Populated by client script -->
+        </div>
+
+        <p class="notice" id="notice-text">
+          You are currently offline. Check your internet connection or use your cached booking pass above.
+        </p>
+
+        <div class="actions">
+          <button type="button" onclick="location.reload()">Retry Connection</button>
+        </div>
+      </div>
     </main>
+
+    <script>
+      (function() {
+        try {
+          var raw = localStorage.getItem("scholarshub_offline_booking");
+          var container = document.getElementById("booking-container");
+          if (raw) {
+            var data = JSON.parse(raw);
+            var b = data.booking || data;
+            var user = data.user || null;
+            if (b && b.libraryId) {
+              var libName = b.libraryId.name || "Library";
+              var libCity = b.libraryId.city || "";
+              var slotName = b.slotId ? (b.slotId.name || "Slot") : "Full Day";
+              var seat = b.seatNumber ? '<span class="seat-tag">Seat ' + b.seatNumber + '</span>' : 'Auto';
+              var start = b.startDate ? new Date(b.startDate).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) : "-";
+              var end = b.endDate ? new Date(b.endDate).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }) : "-";
+              var studentName = user && user.name ? user.name : "Student Pass";
+
+              container.innerHTML =
+                '<div class="booking-card">' +
+                  '<div style="display:flex; justify-content:space-between; align-items:flex-start;">' +
+                    '<div>' +
+                      '<p class="booking-title">' + libName + '</p>' +
+                      '<p class="booking-subtitle">' + libCity + ' · ' + studentName + '</p>' +
+                    '</div>' +
+                    '<span class="status-pill">Active Pass</span>' +
+                  '</div>' +
+                  '<div class="grid-details">' +
+                    '<div>' +
+                      '<div class="label">Seat Number</div>' +
+                      '<div class="value">' + seat + '</div>' +
+                    '</div>' +
+                    '<div>' +
+                      '<div class="label">Slot</div>' +
+                      '<div class="value">' + slotName + '</div>' +
+                    '</div>' +
+                    '<div>' +
+                      '<div class="label">Valid From</div>' +
+                      '<div class="value">' + start + '</div>' +
+                    '</div>' +
+                    '<div>' +
+                      '<div class="label">Valid Until</div>' +
+                      '<div class="value">' + end + '</div>' +
+                    '</div>' +
+                  '</div>' +
+                '</div>';
+              return;
+            }
+          }
+        } catch(e) {}
+
+        // Fallback if no booking stored
+        document.getElementById("booking-container").innerHTML =
+          '<div style="text-align:center; padding: 1rem 0 1.5rem;">' +
+            '<p style="margin:0; font-size:1.05rem; font-weight:600; color:#1f3316;">No offline pass cached</p>' +
+            '<p style="margin:0.35rem 0 0; font-size:0.8rem; color:#60795a;">Connect to the internet to access live library search and your dashboard.</p>' +
+          '</div>';
+      })();
+    </script>
   </body>
 </html>

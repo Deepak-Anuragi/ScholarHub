@@ -61,21 +61,51 @@ export default function BookingsPage() {
   const [cancelTarget, setCancelTarget] = useState<Booking | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [renewing, setRenewing] = useState<string | null>(null);
+  const [isOffline, setIsOffline] = useState(false);
 
   const fetchBookings = useCallback(() => {
     setLoading(true);
     api
       .get<{ active?: Booking[]; past?: Booking[] }>("/student/bookings")
       .then((d) => {
-        setActive(d.active ?? []);
-        setPast(d.past ?? []);
+        const activeList = d.active ?? [];
+        const pastList = d.past ?? [];
+        setActive(activeList);
+        setPast(pastList);
+        setIsOffline(false);
+        if (typeof window !== "undefined" && activeList.length > 0) {
+          localStorage.setItem(
+            "scholarshub_offline_booking",
+            JSON.stringify({
+              booking: activeList[0],
+              user: user ? { name: user.name, email: user.email, id: user.id } : null,
+              cachedAt: new Date().toISOString(),
+            })
+          );
+        }
       })
       .catch(() => {
+        if (typeof window !== "undefined") {
+          const cachedRaw = localStorage.getItem("scholarshub_offline_booking");
+          if (cachedRaw) {
+            try {
+              const parsed = JSON.parse(cachedRaw);
+              if (parsed?.booking) {
+                setActive([parsed.booking]);
+                setPast([]);
+                setIsOffline(true);
+                return;
+              }
+            } catch {
+              // ignore parse errors
+            }
+          }
+        }
         setActive([]);
         setPast([]);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     fetchBookings();
@@ -308,6 +338,19 @@ export default function BookingsPage() {
           </div>
         ) : (
           <>
+            {/* Offline banner */}
+            {isOffline && (
+              <div className="mb-5 flex items-center gap-2.5 rounded-2xl border border-amber-200 bg-amber-50/80 px-4 py-3 text-xs text-amber-900">
+                <span className="relative flex size-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                  <span className="relative inline-flex size-2 rounded-full bg-amber-500" />
+                </span>
+                <span>
+                  <strong>Offline Mode:</strong> No internet connection detected. Showing your last-cached active booking & Digital ID details.
+                </span>
+              </div>
+            )}
+
             {/* Active */}
             <AnimatedContent distance={20} duration={0.45} threshold={0} delay={0.05}>
               <section className="mb-6">
