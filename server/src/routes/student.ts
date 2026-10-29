@@ -23,6 +23,25 @@ router.get("/stats", async (req: Request, res: Response): Promise<void> => {
     await connectDB();
     const id = new mongoose.Types.ObjectId(user.id);
 
+    // Auto-sync notifications for any existing bookings
+    const existingBookings = await BookingModel.find({ studentId: id, paymentStatus: "SUCCESS" })
+      .populate("libraryId", "name")
+      .lean();
+    for (const b of existingBookings) {
+      const exists = await NotificationModel.exists({ userId: id, link: "/student/bookings" });
+      if (!exists) {
+        const libName = (b.libraryId as { name?: string } | null)?.name || "Library";
+        await NotificationModel.create({
+          userId: id,
+          type: "BOOKING_CONFIRMED",
+          title: `Booking Confirmed at ${libName}`,
+          message: `Your booking at ${libName} is active! Plan: ${b.plan}. Your Digital ID pass is ready.`,
+          link: "/student/bookings",
+          createdAt: b.createdAt || new Date(),
+        });
+      }
+    }
+
     const [activeBookings, spentAgg, reviewCount, courseCount, notifications] = await Promise.all([
       // Bookings still running. Named for what it counts: the dashboard card
       // labelled "Active Bookings" reads it, and the old name said otherwise.

@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -67,6 +67,14 @@ function UserMenu() {
   const initials = user.name.split(" ").map((p) => p[0]).join("").slice(0, 2).toUpperCase();
   const handleLogout = async () => { await logout(); router.push("/"); router.refresh(); };
 
+  const roleStr = String(user.role).toLowerCase();
+  const profilePath =
+    roleStr === "admin"
+      ? "/admin/profile"
+      : roleStr === "owner" || roleStr === "library_owner"
+        ? "/owner/profile"
+        : "/student/profile";
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -90,7 +98,7 @@ function UserMenu() {
         </div>
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => router.push(getDashboardPath(user.role))}>Dashboard</DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => router.push("/profile")}>Profile</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => router.push(profilePath)}>Profile</DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-red-500 focus:text-red-500" onClick={() => void handleLogout()}>
           Logout
