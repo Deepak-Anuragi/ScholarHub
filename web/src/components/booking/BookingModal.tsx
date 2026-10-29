@@ -408,6 +408,7 @@ function Step2({
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [couponError, setCouponError] = useState<string | null>(null);
   const { user } = useAuth();
+  const isAdmin = (user?.role as string)?.toLowerCase() === "admin";
 
   const fee = planFee(fees, plan);
   const { platformFee, total } = priceBooking(fee);
@@ -584,6 +585,12 @@ function Step2({
           </span>
         </label>
 
+        {isAdmin && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3 text-xs text-amber-800">
+            <strong>Admin Account Restriction:</strong> Administrators cannot book library seats. Please sign in with a Student account to reserve seats.
+          </div>
+        )}
+
         <div className="flex gap-3">
           <Button
             variant="outline"
@@ -595,11 +602,13 @@ function Step2({
           </Button>
           <Button
             className="flex-1 bg-[#16a34a] text-white hover:bg-[#15803d]"
-            disabled={!agreed || isLoading}
+            disabled={!agreed || isLoading || isAdmin}
             onClick={onNext}
           >
             {isLoading ? (
               <Loader2 className="size-4 animate-spin" />
+            ) : isAdmin ? (
+              "Admin Cannot Book"
             ) : (
               "Proceed to Payment"
             )}

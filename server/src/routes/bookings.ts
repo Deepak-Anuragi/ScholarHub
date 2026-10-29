@@ -73,6 +73,11 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
       couponCode?: string;
     };
 
+    if ((user.role as string).toLowerCase() === "admin") {
+      res.status(403).json({ error: "Administrators cannot book library seats. Please sign in with a student account to book." });
+      return;
+    }
+
     if (!libraryId || !plan || !startDate) {
       res.status(400).json({ error: "libraryId, plan, and startDate are required." });
       return;
@@ -81,6 +86,10 @@ router.post("/create-order", requireAuth, async (req: Request, res: Response): P
     await connectDB();
     const library = await LibraryModel.findById(libraryId);
     if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+    if (library.status === "SUSPENDED") {
+      res.status(400).json({ error: "This library is currently suspended and cannot accept new bookings." });
+      return;
+    }
 
     let slot: InstanceType<typeof SlotModel> | null = null;
     if (slotId) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, CheckCircle, XCircle, Loader2 } from "lucide-react";
 
 import AnimatedContent from "@/components/AnimatedContent";
 import { DataError } from "@/components/dashboard/DataError";
@@ -16,6 +16,7 @@ type Booking = {
   amountPaid: number;
   status: "ACTIVE" | "EXPIRED" | "CANCELLED";
   paymentStatus: string;
+  approvalStatus?: "APPROVED" | "PENDING" | "REJECTED";
   startDate: string;
   endDate: string;
   createdAt: string;
@@ -39,6 +40,7 @@ export default function OwnerBookingsPage() {
   const [error, setError] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("ALL");
+  const [actingId, setActingId] = useState<string | null>(null);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -56,12 +58,39 @@ export default function OwnerBookingsPage() {
     queueMicrotask(load);
   }, [load]);
 
+  const handleApproval = async (bookingId: string, action: "approve" | "reject") => {
+    setActingId(bookingId + "_" + action);
+    try {
+      await api.patch(`/owner/bookings/${bookingId}/approval`, { action });
+      setBookings((prev) =>
+        prev.map((b) =>
+          b._id === bookingId
+            ? {
+                ...b,
+                approvalStatus: action === "approve" ? "APPROVED" : "REJECTED",
+                status: action === "reject" ? "CANCELLED" : b.status,
+              }
+            : b
+        )
+      );
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Action failed.");
+    } finally {
+      setActingId(null);
+    }
+  };
+
   const filtered = bookings.filter((b) => {
     const matchQ =
       !query ||
       b.studentId?.name?.toLowerCase().includes(query.toLowerCase()) ||
       b.studentId?.email?.toLowerCase().includes(query.toLowerCase());
-    const matchS = statusFilter === "ALL" || b.status === statusFilter;
+    const matchS =
+      statusFilter === "ALL"
+        ? true
+        : statusFilter === "PENDING_APPROVAL"
+          ? b.approvalStatus === "PENDING"
+          : b.status === statusFilter;
     return matchQ && matchS;
   });
 
@@ -91,20 +120,26 @@ export default function OwnerBookingsPage() {
               className="h-9 w-full rounded-xl border border-line bg-white pl-9 pr-3 text-sm text-forest-900 outline-none transition focus:border-forest-700"
             />
           </div>
-          <div className="flex gap-2">
-            {["ALL", "ACTIVE", "EXPIRED", "CANCELLED"].map((s) => (
+          <div className="flex flex-wrap gap-2">
+            {[
+              { id: "ALL", label: "All" },
+              { id: "PENDING_APPROVAL", label: "Pending Approval" },
+              { id: "ACTIVE", label: "Active" },
+              { id: "EXPIRED", label: "Expired" },
+              { id: "CANCELLED", label: "Cancelled" },
+            ].map(({ id, label }) => (
               <button
-                key={s}
+                key={id}
                 type="button"
-                onClick={() => setStatusFilter(s)}
+                onClick={() => setStatusFilter(id)}
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-semibold transition",
-                  statusFilter === s
-                    ? "bg-forest-700 text-white"
+                  statusFilter === id
+                    ? "bg-forest-700 text-white shadow-xs"
                     : "bg-white border border-line text-forest-900/60 hover:border-forest-700/40"
                 )}
               >
-                {s}
+                {label}
               </button>
             ))}
           </div>
@@ -136,6 +171,7 @@ export default function OwnerBookingsPage() {
                     <th className="px-5 py-3">Dates</th>
                     <th className="px-5 py-3">Amount</th>
                     <th className="px-5 py-3">Status</th>
+                    <th className="px-5 py-3 text-right">Owner Approval</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -166,6 +202,46 @@ export default function OwnerBookingsPage() {
                         <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-semibold", STATUS_CLS[b.status] ?? "bg-sage-100 text-forest-900/60")}>
                           {b.status}
                         </span>
+                      </td>
+                      <td className="px-5 py-3 text-right">
+                        {b.approvalStatus === "REJECTED" || b.status === "CANCELLED" ? (
+                          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                            Declined
+                          </span>
+                        ) : b.approvalStatus === "PENDING" ? (
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              disabled={actingId === b._id + "_approve" || actingId === b._id + "_reject"}
+                              onClick={() => void handleApproval(b._id, "approve")}
+                              className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-xs font-medium text-white shadow-xs hover:bg-emerald-700 disabled:opacity-50"
+                            >
+                              {actingId === b._id + "_approve" ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <CheckCircle className="size-3" />
+                              )}
+                              Approve
+                            </button>
+                            <button
+                              type="button"
+                              disabled={actingId === b._id + "_approve" || actingId === b._id + "_reject"}
+                              onClick={() => void handleApproval(b._id, "reject")}
+                              className="inline-flex items-center gap-1 rounded-lg border border-red-200 bg-red-50 px-2.5 py-1 text-xs font-medium text-red-700 hover:bg-red-100 disabled:opacity-50"
+                            >
+                              {actingId === b._id + "_reject" ? (
+                                <Loader2 className="size-3 animate-spin" />
+                              ) : (
+                                <XCircle className="size-3" />
+                              )}
+                              Decline
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-semibold text-emerald-800">
+                            ✓ Approved
+                          </span>
+                        )}
                       </td>
                     </tr>
                   ))}

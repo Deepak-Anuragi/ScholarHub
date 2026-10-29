@@ -271,6 +271,58 @@ router.get("/bookings", async (req: Request, res: Response): Promise<void> => {
   }
 });
 
+router.patch("/bookings/:id/approval", async (req: Request, res: Response): Promise<void> => {
+  try {
+    const user = req.sessionUser!;
+    const { action } = req.body as { action?: "approve" | "reject" };
+    if (!action || !["approve", "reject"].includes(action)) {
+      res.status(400).json({ error: "Action must be 'approve' or 'reject'." });
+      return;
+    }
+
+    await connectDB();
+    const library = await LibraryModel.findOne({ ownerId: user.id });
+    if (!library) { res.status(404).json({ error: "Library not found." }); return; }
+
+    const booking = await BookingModel.findOne({ _id: req.params.id, libraryId: library._id });
+    if (!booking) { res.status(404).json({ error: "Booking not found." }); return; }
+
+    const newApprovalStatus = action === "approve" ? "APPROVED" : "REJECTED";
+    booking.approvalStatus = newApprovalStatus;
+
+    if (action === "reject") {
+      booking.status = "CANCELLED";
+      if (booking.slotId) {
+        await SlotModel.findByIdAndUpdate(booking.slotId, { $inc: { availableSeats: 1 } });
+      }
+      await LibraryModel.findByIdAndUpdate(library._id, { $inc: { availableSeats: 1 } });
+    }
+    await booking.save();
+
+    const notifTitle = action === "approve" ? "Booking Approved! 🎉" : "Booking Request Declined";
+    const notifMessage = action === "approve"
+      ? `Your reservation at ${library.name} has been approved by the library owner! Your seat is secured.`
+      : `Your booking request at ${library.name} was declined by the owner. Please contact library support.`;
+
+    const NotificationModel = (await import("../models/Notification")).default;
+    await NotificationModel.create({
+      userId: booking.studentId,
+      type: action === "approve" ? "BOOKING_CONFIRMED" : "BOOKING_CANCELLED",
+      title: notifTitle,
+      message: notifMessage,
+      link: "/student/bookings",
+    });
+
+    const { emitNotificationCount } = await import("../lib/notifications");
+    await emitNotificationCount(String(booking.studentId));
+
+    res.json({ success: true, booking });
+  } catch (err) {
+    console.error("[owner/bookings approval]", err);
+    res.status(500).json({ error: "Failed to update booking approval status." });
+  }
+});
+
 // ─── REVENUE ──────────────────────────────────────────────────────────────
 router.get("/revenue", async (req: Request, res: Response): Promise<void> => {
   try {

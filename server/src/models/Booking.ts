@@ -3,6 +3,7 @@ import mongoose, { Schema, Document, Types } from "mongoose";
 export type BookingPlan = "MONTHLY" | "QUARTERLY" | "ANNUAL";
 export type PaymentStatus = "PENDING" | "SUCCESS" | "FAILED" | "REFUNDED";
 export type BookingStatus = "ACTIVE" | "EXPIRED" | "CANCELLED";
+export type ApprovalStatus = "APPROVED" | "PENDING" | "REJECTED";
 
 export interface IBooking extends Document {
   studentId: Types.ObjectId;
@@ -22,6 +23,7 @@ export interface IBooking extends Document {
   razorpayOrderId?: string;
   seatNumber?: string;
   status: BookingStatus;
+  approvalStatus: ApprovalStatus;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -42,6 +44,7 @@ const BookingSchema = new Schema<IBooking>(
     razorpayOrderId: { type: String },
     seatNumber:      { type: String },
     status:          { type: String, enum: ["ACTIVE", "EXPIRED", "CANCELLED"], default: "ACTIVE" },
+    approvalStatus:  { type: String, enum: ["APPROVED", "PENDING", "REJECTED"], default: "APPROVED" },
   },
   { timestamps: true }
 );
