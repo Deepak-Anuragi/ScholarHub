@@ -76,7 +76,7 @@ export default function BookingsPage() {
   const handleDownload = async (b: Booking) => {
     setDownloading(b._id);
     try {
-      const data = await api.get<ReceiptData>(/student/bookings//receipt);
+      const data = await api.get<ReceiptData>(`/student/bookings/${b._id}/receipt`);
       await downloadReceipt(data, b._id);
     } catch {
       alert("Failed to download receipt. Please try again.");

@@ -56,7 +56,11 @@ const fetchLibraries = async (
   return data;
 };
 
-export function LibrariesExplorer() {
+export interface LibrariesExplorerProps {
+  initialFilters?: Partial<LibraryFilters>;
+}
+
+export function LibrariesExplorer({ initialFilters }: LibrariesExplorerProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -66,7 +70,10 @@ export function LibrariesExplorer() {
     [searchParams]
   );
 
-  const [draft, setDraft] = useState<LibraryFilters>(() => urlFilters);
+  const [draft, setDraft] = useState<LibraryFilters>(() => ({
+    ...urlFilters,
+    ...(initialFilters ?? {}),
+  }));
   const [states, setStates] = useState<string[]>([]);
   const [districts, setDistricts] = useState<string[]>([]);
   const [cities, setCities] = useState<string[]>([]);
@@ -179,7 +186,10 @@ export function LibrariesExplorer() {
       setLoading(true);
       setError(null);
       try {
-        const data = await fetchLibraries(urlFilters);
+        const data = await fetchLibraries({
+          ...initialFilters,
+          ...urlFilters,
+        });
         if (!cancelled) setResult(data);
       } catch {
         if (!cancelled) setError("Could not load libraries. Please try again.");

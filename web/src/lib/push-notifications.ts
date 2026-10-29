@@ -1,4 +1,4 @@
-﻿// Browser push notification support using Web Push API
+// Browser push notification support using Web Push API
 
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!("Notification" in window)) {
@@ -30,7 +30,7 @@ export async function subscribeToPushNotifications(userId: string): Promise<void
 
   const subscription = await registration.pushManager.subscribe({
     userVisibleOnly: true,
-    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+    applicationServerKey: urlBase64ToUint8Array(vapidPublicKey) as unknown as BufferSource,
   });
 
   // Send subscription to server

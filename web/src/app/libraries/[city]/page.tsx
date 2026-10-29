@@ -1,11 +1,13 @@
-﻿import { Metadata } from "next";
+import { Suspense } from "react";
+import { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { MapPin } from "lucide-react";
 import { LibrariesExplorer } from "@/components/library/LibrariesExplorer";
+import { LibraryResultsSkeleton } from "@/components/library/LibraryCardSkeleton";
 
 type Props = {
-  params: { city: string };
-  searchParams: Record<string, string | string[] | undefined>;
+  params: Promise<{ city: string }>;
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
 const SUPPORTED_CITIES = [
@@ -16,7 +18,8 @@ const SUPPORTED_CITIES = [
 ];
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
-  const city = decodeURIComponent(params.city).toLowerCase();
+  const { city: rawCity } = await params;
+  const city = decodeURIComponent(rawCity).toLowerCase();
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
   
   return {
@@ -34,8 +37,9 @@ export async function generateStaticParams() {
   return SUPPORTED_CITIES.map((city) => ({ city }));
 }
 
-export default function CityLibrariesPage({ params, searchParams }: Props) {
-  const city = decodeURIComponent(params.city).toLowerCase();
+export default async function CityLibrariesPage({ params }: Props) {
+  const { city: rawCity } = await params;
+  const city = decodeURIComponent(rawCity).toLowerCase();
   const cityName = city.charAt(0).toUpperCase() + city.slice(1);
 
   if (!SUPPORTED_CITIES.includes(city)) {
@@ -66,7 +70,9 @@ export default function CityLibrariesPage({ params, searchParams }: Props) {
       {/* Libraries explorer with city pre-filled */}
       <section className="py-8">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-          <LibrariesExplorer initialFilters={{ city }} />
+          <Suspense fallback={<LibraryResultsSkeleton count={6} />}>
+            <LibrariesExplorer initialFilters={{ city }} />
+          </Suspense>
         </div>
       </section>
 

@@ -37,13 +37,13 @@ export default function AdminCouponsPage() {
   };
 
   const handleToggle = async (c: Coupon) => {
-    await api.patch(/admin/coupons/, { isActive: !c.isActive });
+    await api.patch(`/admin/coupons/${c._id}`, { isActive: !c.isActive });
     setCoupons((prev) => prev.map((x) => x._id === c._id ? { ...x, isActive: !x.isActive } : x));
   };
 
   const handleDelete = async (id: string) => {
     setDeleting(id);
-    try { await api.delete(/admin/coupons/); setCoupons((prev) => prev.filter((c) => c._id !== id)); } catch { /**/ } finally { setDeleting(null); }
+    try { await api.delete(`/admin/coupons/${id}`); setCoupons((prev) => prev.filter((c) => c._id !== id)); } catch { /**/ } finally { setDeleting(null); }
   };
 
   return (
@@ -79,7 +79,7 @@ export default function AdminCouponsPage() {
               {coupons.map((c) => (
                 <tr key={c._id} className="border-b border-line last:border-0 hover:bg-sage-100/30">
                   <td className="px-4 py-3 font-mono font-bold text-forest-900">{c.code}</td>
-                  <td className="px-4 py-3">{c.discountType === "percent" ? ${c.discountValue}% : Rs.}</td>
+                  <td className="px-4 py-3">{c.discountType === "percent" ? `${c.discountValue}%` : `₹${c.discountValue}`}</td>
                   <td className="px-4 py-3 text-forest-900/70">{c.usedCount}/{c.maxUses}</td>
                   <td className="px-4 py-3 text-forest-900/70">{new Date(c.expiresAt).toLocaleDateString("en-IN")}</td>
                   <td className="px-4 py-3">

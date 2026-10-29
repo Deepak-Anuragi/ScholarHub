@@ -54,7 +54,7 @@ export default function AdminDisputesPage() {
     if (!selected) return;
     setSaving(true);
     try {
-      await api.patch(/admin/disputes/, {
+      await api.patch(`/admin/disputes/${selected._id}`, {
         status: form.status,
         resolution: form.resolution,
         ...(form.refundAmount ? { refundAmount: Number(form.refundAmount) } : {}),

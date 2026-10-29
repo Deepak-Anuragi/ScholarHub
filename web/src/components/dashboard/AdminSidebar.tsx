@@ -1,8 +1,10 @@
-﻿"use client";
+"use client";
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import {
+  AlertCircle,
+  BarChart3,
   BookOpen,
   Bell,
   GraduationCap,
@@ -12,6 +14,7 @@ import {
   TrendingUp,
   Users,
   Building2,
+  Ticket,
 } from "lucide-react";
 
 import {
